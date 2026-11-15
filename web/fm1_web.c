@@ -55,7 +55,7 @@ static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 1
 #define SMK_WHITE_OF_PAD(p) ((p) < 8u ? (p) + 8u : (p) - 8u)   /* (the bottom row: the low notes) */
 static volatile uint8_t smk_pad_pick;           /* (KNOB BANK held: the pads pick, hal/smk_input.h) */
 static volatile uint16_t smk_pick_hits;
-static uint32_t smk_note_led, smk_xled, web_pad_rgbv[SMK_NPAD], web_pad_notes;
+static uint32_t smk_note_led, smk_xled, web_pad_rgbv[SMK_NPAD];
 static uint16_t smk_extq[32];
 static uint8_t smk_extq_w, smk_extq_r;
 static int32_t smk_extkey_take(void)
@@ -251,7 +251,7 @@ static void platform_poll(void)                 /* one call = one millisecond */
     static int32_t blk[2u * HALF_FRAMES];
     uint32_t i, k10;
 #if BOARD_SMK37
-    fm1_in.notes = web_key_mask | web_key_tap | web_pad_notes;   /* (the pads: their white keys) */
+    fm1_in.notes = web_key_mask | web_key_tap;
 #else
     fm1_in.notes = web_key_mask | web_key_tap;  /* a key tapped between two polls is down for this one (the FM-1 scans
                                                  * at 10 kHz: no press is shorter than its millisecond there) */
@@ -361,12 +361,9 @@ EXPORT void web_smk(uint32_t kind, uint32_t a, uint32_t b)
     if (kind == 0u && a < 4u) fm1_in.fader[a] = (uint8_t)b;
     else if (kind == 1u) fm1_in.wheel[1] = (uint16_t)(629u - b * 155u / 127u);
     else if (kind == 6u) fm1_in.wheel[0] = (uint16_t)(445u + b * 195u / 127u);   /* (6: the pitch wheel, b 64 at rest) */
-    else if (kind == 2u && a < SMK_NPAD && smk_pad_pick) { if (b) smk_pick_hits |= (uint16_t)(1u << a); }
-    else if (kind == 2u && a < SMK_NPAD) {
-        uint32_t bit = 1u << SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(a)];
+    else if (kind == 2u && a < SMK_NPAD) {     /* (as the hardware: held, its pressure; a hit to the app) */
+        if (b && fm1_in.pad_st[a] != 0x80u) smk_pick_hits |= (uint16_t)(1u << a);   /* (pressed now, not pressed harder) */
         fm1_in.pad_press[a] = (uint8_t)b, fm1_in.pad_st[a] = b ? 0x80u : 0u;
-        if (b && !(web_pad_notes & bit)) web_notes_pressed |= bit;
-        web_pad_notes = b ? web_pad_notes | bit : web_pad_notes & ~bit;
     } else if (kind == 3u && a < FM1_NKEY && (uint8_t)(smk_extq_w + 1u) % 32u != smk_extq_r)
         smk_extq[smk_extq_w] = (uint16_t)(a << 8 | b), smk_extq_w = (uint8_t)((smk_extq_w + 1u) % 32u);
     else if (kind == 4u && a >= 14u && a < 18u) fm1_in.pressed_x |= 1u << (a - 14u);   /* (a tap) */

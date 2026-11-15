@@ -49,9 +49,9 @@ rescue, OCTAVE- + OCTAVE+ held 5 s update mode.
 | SEQ PLAY / SEQ REC | PLAY / REC |
 | OCTAVE- / OCTAVE+ | OCT- / OCT+ |
 | < / > | the previous / next page |
-| 16 pads | the 16 white keys F3..G5 (as GHOULBOX), low notes on the bottom row; the pressure goes to the note as aftertouch (Holvut overblows, ICE WRAITH screams harder) |
-| pad lights | a sounding key's pad in the accent, the rest a dim glow tinted by JAHKI's season (later: each track's colour, breathing with what it plays) |
-| KNOB BANK | the pads as a picker while held: top row the slots A..D; bottom row the eight Sami seasons (JAHKI) |
+| 16 pads | the keys play the notes, so the pads play the piece, as on Arctic Scream VIBE: top row T1..T4 (again: LATCH), slots A..D; bottom row the FX layer's eight tricks held; SEQ held: DICE; the pressure: the selected track's aftertouch |
+| pad lights | what each pad does now: the tracks' colours, the slots used, a trick bright while held |
+| KNOB BANK | held: the top row mutes T1..T4 and saves into A..D, the bottom row the eight Sami seasons (JAHKI) |
 | FADER BANK | A: T1..T4 levels; B: DELAY, SPACE, GRAIN, SHIMMER; C: SWELL, MASTER CUTOFF, DRIVE, SPACE SIZE |
 | Pitch wheel | bend, the selected track, +-2 semitones |
 | Mod wheel | SWELL (CC 1, as on the FM-1 with a MIDI keyboard) |

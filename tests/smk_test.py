@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 PolarPatch
 """Arctic Scream SMK-37 in host mode (tests/host.c with BOARD_SMK37; firmware/src/smk.c): the faders take over only
-once they reach the value, FADER BANK steps the banks (its LED), the mod wheel is SWELL, a pad plays its white key
-with its pressure as aftertouch and lights, an outer key plays below F3.
+once they reach the value, FADER BANK steps the banks (its LED), the mod wheel is SWELL, the pads play the piece (the
+tracks, the slots, the FX tricks held, KNOB BANK's mutes and seasons) with their pressure as aftertouch, an outer key
+plays below F3.
   python3 tests/smk_test.py      (builds build/host/grimm-smk37)"""
 import re
 import subprocess
@@ -52,16 +53,19 @@ def bright(c):
 P = lambda *ts: [(t, "probe") for t in ts]
 pr, notes = run("smk", P(3000) + [(4000, "fader 0 50")] + P(4100) + [(4200, "fader 0 110"), (4400, "fader 0 120")] + P(4600) +
                 [(5000, "xbtn 15"), (5100, "fader 1 10")] + P(5200) + [(6000, "mod 474")] + P(6300) +
-                [(7000, "pad 8 90")] + P(7300) + [(8000, "okey 0 100")] + P(8300), 9000)
-check("at power-on: bank A, the levels as they were, the pads a dim glow",
-      pr[3000]["bank"] == "0" and pr[3000]["lvl"] == "100,100,100,100" and all(0 < bright(c) < 120 for c in pr[3000]["pads"]), pr[3000])
+                [(7000, "pad 8 90")] + P(7300) + [(7500, "pad 8 0")] + P(7700) + [(8000, "okey 0 100")] + P(8300), 9000)
+pd = pr[3000]["pads"]
+check("at power-on: bank A, the levels as they were; the pads: T1 lit, T2..T4 and the tricks dim, no slot used",
+      pr[3000]["bank"] == "0" and pr[3000]["lvl"] == "100,100,100,100" and bright(pd[0]) > 200 and
+      all(0 < bright(pd[p]) < 120 for p in (1, 2, 3, *range(8, 16))) and all(pd[p] == 0 for p in range(4, 8)), pr[3000])
 check("a fader below the value: nothing yet (soft takeover)", pr[4100]["lvl"].startswith("100,"), pr[4100]["lvl"])
 check(".. once past it, it sets T1's LEVEL", pr[4600]["lvl"].startswith("120,"), pr[4600]["lvl"])
 check("FADER BANK: bank B, its LED lit; a fader there not taken at once", pr[5200]["bank"] == "1" and pr[5200]["xled"] == "2" and
       pr[5200]["spc"] == pr[4600]["spc"], pr[5200])
 check("the mod wheel up: SWELL 127", pr[6300]["sw"] == "127", pr[6300]["sw"])
-check("a pad (bottom-left, F3): its note, its pressure as aftertouch, its light",
-      "1:41" in notes[7300] and pr[7300]["press"] == "90" and bright(pr[7300]["pads"][8]) > 200, (notes[7300], pr[7300]))
+check("a bottom-row pad held: its trick (the first: REV THROW) while held, no note, its pressure as aftertouch, lit",
+      pr[7300]["pf"] == "1" and not any(n.startswith("1:41") for n in notes[7300]) and pr[7300]["press"] == "90" and
+      bright(pr[7300]["pads"][8]) > 200 and pr[7700]["pf"] == "0", (notes[7300], pr[7300], pr[7700]["pf"]))
 check("an outer key (C3): the note five below F3, on the selected track", "1:36" in notes[8300], notes[8300])
 
 pr, notes = run("pages", P(3000) + [(3200, "xbtn 17")] + P(3400) + [(3600, "xbtn 16")] + P(3800) +
@@ -71,6 +75,11 @@ check("> the next page of the page's button, < back", pr[3400]["page"] != pr[300
 check("KNOB BANK held: a bottom-row pad picks a season (the third: GIDDA), no note; its LED lit while held",
       pr[4600]["ys"] == 2 and notes[4600] == [] and pr[4600]["xled"] == "1" and pr[5000]["xled"] == "0",
       (pr[4600].get("ys"), notes[4600], pr[4600]["xled"], pr[5000]["xled"]))
+pr, notes = run("pads", P(3000) + [(3200, "pad 2 80"), (3300, "pad 2 0")] + P(3500) + [(3700, "pad 2 80"), (3800, "pad 2 0")] +
+                P(4000) + [(4200, "xbtn 114"), (4300, "pad 0 80"), (4400, "pad 0 0"), (4500, "xbtn 214")] + P(4700), 5000)
+check("a top-row pad: its track; again: its LATCH; KNOB BANK + the first: T1 muted",
+      pr[3500]["sel"] == "2" and pr[4000]["sel"] == "2" and pr[4000]["lat"] != pr[3500]["lat"] and pr[4700]["mute"] == "1",
+      [(pr[t]["sel"], pr[t]["lat"], pr[t]["mute"]) for t in (3500, 4000, 4700)])
 pr, notes = run("bend", [(2900, "pitch 535"), (3000, "keys 1")] + P(3500) + [(4000, "pitch 640")] + P(4500) +
                 [(5000, "pitch 536")] + P(5500), 6000)
 check("the pitch wheel: at rest no bend, full up two semitones (32 / 16), back at rest none",

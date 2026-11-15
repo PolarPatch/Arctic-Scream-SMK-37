@@ -198,12 +198,18 @@ function syncButtons() {
   for (const b of buttons) if (b.id < 14) b.el.classList.toggle("held", !!(m & (1 << b.id)));
 }
 
-// pads: 0..7 the top row, 8..15 the bottom (the hardware's numbers); the pressure from how high on the pad it is held
+// pads: 0..7 the top row, 8..15 the bottom (the hardware's numbers); the pressure from how high on the pad it is held.
+// What they do (smk.c): the tracks, the slots, the FX layer's tricks held (KNOB BANK held: mutes, saves, the seasons)
+const PAD_NAME = ["T1", "T2", "T3", "T4", "A", "B", "C", "D", "REV", "ECHO", "TAPE", "BACK", "LOW", "HIGH", "STUT", "SWELL"];
+const PAD_TITLE = ["T1 (again: LATCH)", "T2 (again: LATCH)", "T3 (again: LATCH)", "T4 (again: LATCH)", "slot A", "slot B", "slot C",
+  "slot D", "REV THROW", "ECHO THROW", "TAPE STOP", "REVERSE", "FILTER DOWN", "FILTER UP", "STUTTER", "SWELL"];
 const pads = [];
 for (let p = 0; p < 16; p++) {
   const el = make("div", "pad", padBox);
+  make("span", "plab", el, PAD_NAME[p]);
+  el.title = PAD_TITLE[p];
   el.setAttribute("role", "button");
-  el.setAttribute("aria-label", `Pad ${p + 1}`);
+  el.setAttribute("aria-label", `Pad ${p + 1}: ${PAD_TITLE[p]}`);
   pads.push(el);
   el.addEventListener("pointerdown", (e) => {
     e.preventDefault();

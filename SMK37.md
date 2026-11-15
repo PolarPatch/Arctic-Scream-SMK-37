@@ -58,9 +58,12 @@ The FM-1's manual applies; the screen keeps the FM-1's names.
 | SEQ PLAY · SEQ REC | PLAY · REC |
 | OCTAVE- · OCTAVE+ | OCT- · OCT+ |
 | < · > | the previous · next page of the page's button |
-| 16 pads | the white keys F3 .. G5, the low notes on the bottom row; pressed harder, the track's aftertouch (Holvut and the screams howl harder) |
-| The pads' lights | a sounding key's pad in the accent; the rest a dim glow, tinted by JAHKI's season |
-| KNOB BANK, held | the pads pick: the top row's first four recall the slots A .. D, the bottom row the eight Sami seasons |
+| Pads, top row | 1 .. 4 the tracks (the selected one again: its LATCH) · 5 .. 8 the slots A .. D, recalled |
+| Pads, bottom row | the FX tricks, each on while held: REV THROW, ECHO THROW, TAPE STOP, REVERSE, FILTER DOWN, FILTER UP, STUTTER, SWELL |
+| SEQ held + bottom row | DICE's eight moods |
+| Pad pressure | the selected track's aftertouch (Holvut and the screams howl harder) |
+| The pads' lights | what they do now: the tracks in their colours (the selected one bright), the slots used, a trick bright while held |
+| KNOB BANK, held | the top row mutes T1 .. T4 and saves into A .. D, the bottom row picks one of the eight Sami seasons |
 | FADER BANK | A: the four tracks' levels · B: DELAY, SPACE, GRAIN, SHIMMER · C: SWELL, MASTER CUTOFF, DRIVE, SPACE SIZE (its LED lit off A) |
 | Faders 1 .. 4 | the bank's four; a fader takes over only once it reaches the value, so nothing jumps |
 | Mod wheel | SWELL (as CC 1 from a MIDI keyboard) |

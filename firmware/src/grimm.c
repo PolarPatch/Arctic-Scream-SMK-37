@@ -2662,6 +2662,9 @@ static void app_step(void)                      /* one pass of the main loop: on
     int32_t d;
     platform_poll();
     smk_poll();                                 /* (the SMK-37's outer keys, faders, wheels, pads' pressure) */
+#if BOARD_SMK37
+    if (smk_seq_used) b_used |= 1u << BTN_SEQ, smk_seq_used = 0;   /* (SEQ held + a pad: DICE, no page change) */
+#endif
     if (fm1_in.notes != prev || fm1_in.buttons) t_touch = t_hand = fm1_ms;   /* (the autosave waits for the hands
                                              * to rest; SCREEN OFF counts from their last touch) */
 

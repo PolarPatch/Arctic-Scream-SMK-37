@@ -545,11 +545,9 @@ static void platform_poll(void)                 /* one call = one millisecond */
             case HK_MOD: fm1_in.wheel[1] = (uint16_t)A; break;
             case HK_PITCH: fm1_in.wheel[0] = (uint16_t)A; break;
             case HK_PAD:
-                if (A < SMK_NPAD && smk_pad_pick) { if (B) smk_pick_hits |= (uint16_t)(1u << A); }
-                else if (A < SMK_NPAD) {
-                    uint32_t bit = 1u << SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(A)];
+                if (A < SMK_NPAD) {             /* (as the hardware: held, its pressure; a hit to the app) */
+                    if (B && fm1_in.pad_st[A] != 0x80u) smk_pick_hits |= (uint16_t)(1u << A);
                     fm1_in.pad_press[A] = (uint8_t)(B > 127u ? 127u : B), fm1_in.pad_st[A] = B ? 0x80u : 0u;
-                    fm1_in.notes = B ? fm1_in.notes | bit : fm1_in.notes & ~bit;
                 }
                 break;
             case HK_OKEY:

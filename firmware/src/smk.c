@@ -10,11 +10,14 @@
  *                DRIVE, SPACE SIZE
  *   mod wheel    SWELL (as CC 1 from a MIDI keyboard)
  *   pitch wheel  the selected track bent, +-2 semitones (its centre learned at rest, as genkigenki's layer does)
- *   pads         their pressure to the selected track as aftertouch (Holvut and the screams: harder)
- *   pad lights   a lit key's pad in the accent; the rest a dim glow: JAHKI's season, or the accent
- *   < / >        the previous / next page of the page's button (as tapping it again)
- *   KNOB BANK    held: the pads pick instead of playing; the top row's first four recall the slots A..D (as SAVE's
- *                keys), the bottom row the eight Sami seasons (JAHKI's SEASON); lit as they are */
+ *   pads         the keys play the notes, so the pads play the piece (as on Arctic Scream VIBE): the top row 1..4
+ *                the tracks (the selected one again: its LATCH), 5..8 the slots A..D; the bottom row the FX layer's
+ *                eight tricks, each on while held (REV THROW, ECHO THROW, TAPE STOP, REVERSE, FILTER DOWN, FILTER
+ *                UP, STUTTER, SWELL). Their pressure: the selected track's aftertouch (Holvut and the screams harder)
+ *   SEQ held     the bottom row: DICE's eight moods (as SEQ held + G3 .. G4)
+ *   KNOB BANK    held: the top row 1..4 mute T1..T4, 5..8 save into A..D; the bottom row the eight Sami seasons
+ *   pad lights   what they do now: the tracks in their colours, the slots used, the tricks bright while held
+ *   < / >        the previous / next page of the page's button (as tapping it again) */
 
 #if BOARD_SMK37
 #define SMK_NBANK 3u
@@ -25,6 +28,11 @@ static uint8_t smk_oheld[FM1_NKEY];             /* an outer key's note (+1) whil
 static uint8_t smk_press_was;
 static int32_t smk_pb_c = -1, smk_pb_lo = 445, smk_pb_hi = 640, smk_pb_t = -1;   /* the pitch wheel: its centre
                                                  * (raw), its travel seen, the track it bends */
+static uint16_t smk_pheld;                      /* the pads held at the last poll */
+static uint32_t smk_pf;                         /* the tricks the pads hold (bit PF_) */
+static uint32_t smk_seq_used;                   /* (SEQ held + a pad: no page change when SEQ is let go: app_step) */
+static const char *const SMK_PF_NAME[NPF] = {"REV THROW", "ECHO THROW", "TAPE STOP", "REVERSE", "FILTER DOWN",
+                                             "FILTER UP", "STUTTER", "SWELL"};
 static int32_t smk_mod_was = -1, smk_mod_lo = 474, smk_mod_hi = 629;   /* the mod wheel: last value; its travel (raw,
                                                  * up = lower), widened to what it has shown (units differ) */
 /* bank b, fader f: (page, knob, track: 4 = the selected); SWELL: page NPAGE (its own) */
@@ -80,17 +88,35 @@ static void smk_poll(void)
     if (fm1_in.pressed_x & 1u << (SMK_B_LEFT - 14u)) page = smk_page_step(-1), midi_touch = 1;
     fm1_in.pressed_x = 0;
     smk_led_extra(SMK_B_FADER_BANK, smk_bank != 0u);
-    smk_pad_pick = (uint8_t)(fm1_in.xbuttons & 1u);   /* (KNOB BANK held: the picker) */
-    smk_led_extra(SMK_B_KNOB_BANK, smk_pad_pick);
-    if (smk_pick_hits) {
-        uint32_t h = smk_pick_hits, p;
+    smk_pad_pick = 1;                           /* (the pads play no notes: the hardware layer hands their hits over) */
+    smk_led_extra(SMK_B_KNOB_BANK, fm1_in.xbuttons & 1u);
+    {                                           /* the pads: their hits since the last poll, the ones held now */
+        uint32_t h = smk_pick_hits, held = 0, p, kb = fm1_in.xbuttons & 1u, sq = fm1_in.buttons >> BTN_SEQ & 1u, pf = 0;
         smk_pick_hits = 0;
+        for (p = 0; p < SMK_NPAD; p++)
+            if (fm1_in.pad_st[p] == 0x80u) held |= 1u << p;
         for (p = 0; p < SMK_NPAD; p++) {
             if (!(h >> p & 1u)) continue;
-            if (p < 4u) slot_do_recall(p);      /* (top row: A..D) */
-            else if (p >= 8u) knob_step(PG_JAHKI, 1u, (int32_t)(p - 8u) - yr_season);   /* (bottom row: a season) */
             midi_touch = 1;
+            if (kb) {                           /* KNOB BANK held: mutes, saves, the seasons */
+                if (p < 4u) {
+                    trk_mute ^= 1u << p;
+                    put_s(put_u(put_s(hd_msg, "T"), p + 1u), trk_mute >> p & 1u ? " MUTED" : " ON");
+                    hd_until = fm1_ms + 1500u;
+                } else if (p < 8u) slot_do_save(p - 4u);
+                else knob_step(PG_JAHKI, 1u, (int32_t)(p - 8u) - yr_season);
+            } else if (p < 4u) {                /* the tracks; the selected one again: its LATCH */
+                if (p == sel) set_latch(!trk[sel].latch), hd_say(trk[sel].latch ? "LATCH ON" : "LATCH OFF");
+                else sel = p;
+            } else if (p < 8u) slot_do_recall(p - 4u);
+            else if (sq) dice(p - 8u, (uint32_t)(KEY0 + 12 * set.oct)), smk_seq_used = 1;
+            else hd_say(SMK_PF_NAME[p - 8u]);
         }
+        if (!kb && !sq)                         /* the tricks: on while their pad is held (a tap: at least this poll) */
+            for (p = 8u; p < SMK_NPAD; p++)
+                if ((held | h) >> p & 1u) pf |= 1u << (p - 8u);
+        pf_held = (pf_held & ~smk_pf) | pf;
+        smk_pf = pf, smk_pheld = (uint16_t)held;
     }
     for (f = 0; f < 4u; f++) {
         const uint8_t *F = SMK_FAD[smk_bank][f];
@@ -155,47 +181,54 @@ static void smk_poll(void)
     }
 }
 
-static void smk_pads(void)                      /* the pads' lights, as the FM-1's key LEDs would be lit */
+static void smk_pads(void)                      /* the pads' lights: what each one does now */
 {
     static const uint8_t SC[8][3] = {{0x1c, 0x2a, 0x6e}, {0x9c, 0xc8, 0xf0}, {0x3f, 0xb9, 0x50}, {0x7c, 0xd8, 0x6a},
                                      {0xff, 0xcb, 0x47}, {0xd9, 0xa4, 0x41}, {0xb0, 0x5a, 0x3a}, {0x6a, 0x6e, 0x9a}};
-    uint32_t p, a = ui_acc_user, r = (a >> 11 & 31u) << 3, g = (a >> 5 & 63u) << 2, b = (a & 31u) << 3;
-    uint32_t dr = r >> 4, dg = g >> 4, db = b >> 4;
-    if (yr_on()) {                              /* (JAHKI: the season's tint under it) */
-        const uint8_t *c = SC[(uint32_t)clamp(yr_season, 0, 7)];
-        dr = c[0] >> 4, dg = c[1] >> 4, db = c[2] >> 4;
-    }
-    if (smk_pad_pick) {                         /* the picker: the slots (the one in use bright), the seasons */
-        for (p = 0; p < SMK_NPAD; p++) {
-            const uint8_t *c = SC[p & 7u];
-            if (p < 4u) {
-                uint32_t on = (int32_t)p == slot_cur;
-                padled_set(p, (uint8_t)(on ? r : dr * 3u), (uint8_t)(on ? g : dg * 3u), (uint8_t)(on ? b : db * 3u));
-            } else if (p < 8u) padled_set(p, 0, 0, 0);
-            else if ((int32_t)(p - 8u) == yr_season) padled_set(p, c[0], c[1], c[2]);
-            else padled_set(p, (uint8_t)(c[0] >> 3), (uint8_t)(c[1] >> 3), (uint8_t)(c[2] >> 3));
-        }
-        padled_flush();
-        return;
-    }
+    static const uint8_t PF[NPF][3] = {{0xa7, 0x8b, 0xfa}, {0x4f, 0x8c, 0xff}, {0xff, 0xb0, 0x40}, {0xff, 0x7a, 0x30},
+                                       {0x22, 0xd3, 0xee}, {0x3f, 0xb9, 0x50}, {0xff, 0x1a, 0x8c}, {0xea, 0xf6, 0xfa}};
+    uint32_t p, kb = fm1_in.xbuttons & 1u, sq = fm1_in.buttons >> BTN_SEQ & 1u;
     for (p = 0; p < SMK_NPAD; p++) {
-        uint32_t n = SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(p)];
-        if (smk_note_led >> n & 1u || fm1_in.pad_st[p]) padled_set(p, (uint8_t)r, (uint8_t)g, (uint8_t)b);
-        else padled_set(p, (uint8_t)dr, (uint8_t)dg, (uint8_t)db);
+        uint32_t r, g, b, on = smk_pheld >> p & 1u;
+        if (p < 4u) {                           /* the tracks, in their colours (KNOB BANK: dark when muted) */
+            uint32_t c = wv_col(p), lit = kb ? !(trk_mute >> p & 1u) : p == sel;
+            r = (c >> 11 & 31u) << 3, g = (c >> 5 & 63u) << 2, b = (c & 31u) << 3;
+            if (kb && (trk_mute >> p & 1u)) r = 0x60, g = 0, b = 0;
+            else if (!lit) r >>= 3, g >>= 3, b >>= 3;
+        } else if (p < 8u) {                    /* the slots: used dim, the one in use bright (KNOB BANK: save, magenta) */
+            uint32_t k = p - 4u;
+            if (kb) r = 0xff, g = 0x1a, b = 0x8c, r = on ? r : r >> 3, g = on ? g : g >> 3, b = on ? b : b >> 3;
+            else if ((int32_t)k == slot_cur && slot_used(k)) r = 0x22, g = 0xd3, b = 0xee;
+            else if (slot_used(k)) r = 0x04, g = 0x1a, b = 0x1e;
+            else r = g = b = 0;
+        } else if (kb) {                        /* the seasons */
+            const uint8_t *c = SC[p - 8u];
+            uint32_t sh = (int32_t)(p - 8u) == yr_season ? 0u : 3u;
+            r = c[0] >> sh, g = c[1] >> sh, b = c[2] >> sh;
+        } else if (sq) {                        /* DICE */
+            r = 0xff, g = 0x1a, b = 0x8c;
+            if (!on) r >>= 3, g >>= 3, b >>= 3;
+        } else {                                /* the tricks: bright while held */
+            const uint8_t *c = PF[p - 8u];
+            uint32_t sh = pf_held >> (p - 8u) & 1u ? 0u : 3u;
+            r = c[0] >> sh, g = c[1] >> sh, b = c[2] >> sh;
+        }
+        padled_set(p, (uint8_t)r, (uint8_t)g, (uint8_t)b);
     }
     padled_flush();
 }
 #ifdef DINGHY_HOST
 static void smk_probe(void)                     /* (host: tests/probe.c, "smkprobe MS bend B16 bank B sw S press P lit L xled X
-                                                 * lvl L1,L2,L3,L4 dly D spc S mcut C pads RRGGBB x16") */
+                                                 * lvl L1,L2,L3,L4 dly D spc S mcut C pf F sel T mute M lat L pads RRGGBB x16") */
 {
     uint32_t p, s0 = sel;
     int32_t lv[4];
     for (p = 0; p < 4u; p++) sel = p, lv[p] = *knob_param(PG_MIX1, 0);
     sel = s0;
-    printf("smkprobe %u bend %d bank %u sw %d press %u lit %x xled %x lvl %d,%d,%d,%d dly %d spc %d mcut %d pads", fm1_ms, (int)smk_bend16[sel], smk_bank,
-           (int)sw_cc, hw_press[sel], host_lit, smk_xled, (int)lv[0], (int)lv[1], (int)lv[2], (int)lv[3],
-           (int)*knob_param(PG_DELAY, 3), (int)*knob_param(PG_SPACE, 2), (int)mf_cut);
+    printf("smkprobe %u bend %d bank %u sw %d press %u lit %x xled %x lvl %d,%d,%d,%d dly %d spc %d mcut %d pf %x sel %u mute %x lat %d pads",
+           fm1_ms, (int)smk_bend16[sel], smk_bank, (int)sw_cc, hw_press[sel], host_lit, smk_xled, (int)lv[0], (int)lv[1],
+           (int)lv[2], (int)lv[3], (int)*knob_param(PG_DELAY, 3), (int)*knob_param(PG_SPACE, 2), (int)mf_cut,
+           (unsigned)pf_held, (unsigned)sel, (unsigned)trk_mute, (int)trk[sel].latch);
     for (p = 0; p < SMK_NPAD; p++) printf(" %06x", host_pad_rgb[p]);
     printf("\n");
 }

@@ -53,8 +53,10 @@ for (;;) {
 }
 const bright = (c) => (c >> 16 & 255) + (c >> 8 & 255) + (c & 255);
 check("silent before the pads, it sounds after", sum[1] > 1 && sum[1] > sum[0] * 10, sum.join(" "));
-check("the pads glow dim at rest", pads && pads.every((c) => bright(c) > 0 && bright(c) < 120), pads && pads.map((c) => c.toString(16)).join(" "));
-check("a pad held lights (bottom-left: pad 8, F3)", padsOn && bright(padsOn[8]) > 200, padsOn && padsOn[8].toString(16));
+check("the pads at rest: T1 lit, T2 .. T4 and the tricks dim, no slot used", pads && bright(pads[0]) > 200 &&
+  [1, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15].every((p) => bright(pads[p]) > 0 && bright(pads[p]) < 120) && [4, 5, 6, 7].every((p) => pads[p] === 0),
+  pads && pads.map((c) => c.toString(16)).join(" "));
+check("a trick's pad held lights (bottom-left: pad 8, REV THROW)", padsOn && bright(padsOn[8]) > 200, padsOn && padsOn[8].toString(16));
 check("FADER BANK: its LED lit off bank A", (xled & 2) !== 0, xled);
 // smk_panel.js is a classic script: a top-level name the window already has (top, name, status ...) stops it dead
 const clash = [...readFileSync("web/smk_panel.js", "utf8").matchAll(/^(?:const|let|class)\s+([A-Za-z_$][\w$]*)/gm)]

@@ -1,0 +1,145 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 PolarPatch
+     Arctic Scream SMK-37 in the browser: firmware/src/grimm.c built for the SMK-37 (BOARD_SMK37), on a fake keyboard
+     (web/fm1_web.c), in the FM-1 page's worklet (worklet.js); the panel: web/smk_panel.js. The look: the FM-1 page's
+     (PolarPatch BlueWatch's cyberpunk colours). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arctic Scream SMK-37</title>
+<link rel="icon" href="polarpatch-logo.png">
+<meta name="description" content="Arctic Scream for the M-VAVE SMK-37, running in your browser: the same code the keyboard runs.">
+<style>
+@font-face { font-family: "Press Start 2P"; src: url("PressStart2P-Regular.ttf") format("truetype"); font-display: swap; }
+:root { --bg: #060410; --body: #161b22; --bed: #0a0d12; --part: #1c232c; --part-hi: #242c37; --edge: #30363d;
+        --fg: #eaf6fa; --label: #a6afb9; --dim: #7fa8b8; --muted: #45606e; --lit: #22d3ee; --rec: #f85149;
+        --ice: #22d3ee; --line: #16222e;
+        --mono: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+        --pix: "Press Start 2P", var(--mono); color-scheme: dark; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--fg); font: 14px/1.6 system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+       background-image: radial-gradient(circle at 15% 0%, rgba(34, 211, 238, .07), transparent 45%),
+                         radial-gradient(circle at 85% 100%, rgba(255, 26, 140, .05), transparent 45%); background-attachment: fixed; }
+.wrap { width: min(100% - 32px, 1320px); margin: 0 auto; }
+header { padding: 28px 0 8px; }
+h1 { font: 400 clamp(18px, 2.6vw, 30px)/1.3 var(--pix); color: var(--ice); margin: 0 0 8px; letter-spacing: .04em; }
+header p { color: var(--label); margin: 0; max-width: 72ch; }
+
+/* the keyboard: everything in container units, so it scales as one piece */
+.stage { position: relative; container-type: inline-size; margin: 20px 0 12px; }
+.smk { background: var(--body); border: 1px solid var(--edge); border-radius: 2cqw; padding: 2cqw; display: grid; gap: 1.6cqw;
+       box-shadow: 0 2cqw 5cqw rgba(0, 0, 0, .5); }
+.top { display: grid; grid-template-columns: 9cqw 22cqw 1fr 24cqw; gap: 2cqw; align-items: center; }
+.bottom { display: grid; grid-template-columns: 1fr 1.25fr; gap: 2cqw; align-items: center; }
+.label { font: 600 1.1cqw/1.2 var(--mono); color: var(--label); letter-spacing: .12em; text-align: center; }
+.sub { font: 500 .95cqw/1.2 var(--mono); color: var(--muted); letter-spacing: .08em; text-align: center; }
+
+.wheels { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2cqw; height: 20cqw; }
+.wheel { display: grid; grid-template-rows: 1fr auto; gap: .6cqw; }
+.wtrack, .ftrack { position: relative; background: var(--bed); border: .15cqw solid var(--edge); border-radius: 1cqw; touch-action: none; cursor: ns-resize; }
+.wcap { position: absolute; left: 8%; right: 8%; height: 18%; background: linear-gradient(#2a333e, #161b22); border: .15cqw solid #3a434e; border-radius: .7cqw; }
+
+.screenbox { display: grid; gap: .8cqw; justify-items: center; }
+canvas { width: 100%; aspect-ratio: 1; background: #060410; border: 1.2cqw solid #0b0f15; border-radius: 1.2cqw;
+         image-rendering: crisp-edges; image-rendering: pixelated; }
+.brand { font: 400 1cqw var(--pix); color: var(--dim); letter-spacing: .08em; text-transform: uppercase; }
+.brand i { font-style: normal; color: var(--muted); margin: 0 .5em; }
+.brand span { color: var(--ice); }
+
+.knobs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.6cqw 1.2cqw; }
+.knob { display: grid; gap: .5cqw; justify-items: center; }
+.dial { position: relative; width: 6.2cqw; aspect-ratio: 1; border-radius: 50%; background: #0d1117; border: .45cqw solid #060410;
+        box-shadow: 0 0 0 .2cqw var(--edge); cursor: ns-resize; touch-action: none; }
+.dial::after { content: ""; position: absolute; left: 50%; top: 10%; width: 9%; height: 30%; margin-left: -4.5%;
+               border-radius: 1cqw; background: var(--fg); transform-origin: 50% 133%; transform: rotate(var(--a, 0deg)); }
+
+.faders { display: grid; gap: .8cqw; }
+.bankname { font: 600 .95cqw/1.2 var(--mono); color: var(--dim); letter-spacing: .08em; text-align: center; min-height: 2.4cqw; }
+.frow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2cqw; height: 17cqw; }
+.fader { display: grid; grid-template-rows: 1fr auto; gap: .5cqw; }
+.ftrack { width: 40%; justify-self: center; }
+.fcap { position: absolute; left: -60%; right: -60%; height: 14%; background: linear-gradient(#2a333e, #161b22); border: .15cqw solid #3a434e; border-radius: .5cqw; }
+
+.buttons { display: grid; grid-template-columns: repeat(6, 1fr); gap: .9cqw; }
+.btn { padding: .6cqw .2cqw; min-height: 4.6cqw; background: var(--part); color: var(--label); border: .15cqw solid var(--edge);
+       border-radius: .9cqw; font: 600 .95cqw/1.2 var(--mono); letter-spacing: .06em; cursor: pointer; touch-action: none; }
+.btn small { display: block; font-size: .85cqw; color: var(--muted); margin-top: .3cqw; }
+.btn.x { color: var(--dim); }
+.btn.lit { border-color: var(--lit); color: var(--fg); box-shadow: 0 0 .7cqw rgba(34, 211, 238, .35); }
+.btn.lit small { color: var(--ice); }
+.btn.held { background: var(--part-hi); color: var(--fg); }
+
+.pads { display: grid; grid-template-columns: repeat(8, 1fr); gap: .9cqw; }
+.pad { aspect-ratio: 1; border-radius: .8cqw; background: #12161c; border: .15cqw solid var(--edge); touch-action: none; cursor: pointer;
+       box-shadow: inset 0 0 1.6cqw var(--pad, transparent); }
+.pad.on { background: color-mix(in srgb, var(--pad) 70%, #12161c); box-shadow: 0 0 1.2cqw var(--pad), inset 0 0 .8cqw rgba(255, 255, 255, .25); }
+.pad.held { border-color: var(--fg); }
+
+.keybed { position: relative; height: 13cqw; background: var(--bed); border-radius: 1cqw; border: .15cqw solid var(--edge); overflow: hidden; }
+.key { position: absolute; top: 0; bottom: 0; background: #c9d1d9; border: .1cqw solid #0a0d12; border-radius: 0 0 .5cqw .5cqw;
+       touch-action: none; cursor: pointer; box-sizing: border-box; }
+.key.black { bottom: 38%; background: #1c232c; z-index: 2; border-color: #060410; }
+.key.outer { background: #a6afb9; }
+.key.black.outer { background: #2a333e; }
+.key.held { background: #e6edf3; box-shadow: inset 0 -1cqw 1.4cqw rgba(34, 211, 238, .45); }
+.key.black.held { background: #45606e; }
+
+.start { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; z-index: 6;
+         background: rgba(6, 4, 16, .62); border-radius: 2cqw; }
+.start[hidden] { display: none; }
+.start button { font: 400 clamp(16px, 2.6cqw, 28px) var(--pix); letter-spacing: .06em; padding: 18px 30px; background: rgba(6, 4, 16, .7);
+                color: var(--ice); border: 1px solid var(--ice); border-radius: 4px; cursor: pointer;
+                box-shadow: 0 0 12px rgba(34, 211, 238, .35), inset 0 0 12px rgba(34, 211, 238, .15); }
+.start p { margin: 0; font: 600 12px var(--mono); letter-spacing: .12em; color: var(--label); text-align: center; }
+#error { color: var(--rec); max-width: 60ch; }
+
+.notes { color: var(--label); max-width: 80ch; padding-bottom: 40px; }
+.notes code { font: 13px var(--mono); color: var(--fg); }
+table { border-collapse: collapse; font: 13px/1.5 var(--mono); margin: 12px 0 24px; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 14px 6px 0; text-align: left; vertical-align: top; }
+th { color: var(--dim); font-weight: 600; }
+
+@media (max-width: 720px) {
+  .stage { overflow-x: auto; }
+  .smk { min-width: 880px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Arctic Scream SMK-37</h1>
+    <p>Arctic Scream on the M-VAVE SMK-37: the drones, the howls and the singing ice of the FM-1 firmware, on 37 keys,
+      16 pads, four faders and two wheels. This page runs the same code the keyboard will run. It is being built before
+      the keyboard is here: nothing on this page has run on an SMK-37 yet.</p>
+  </header>
+  <div class="stage">
+    <section class="smk" id="smk" aria-label="The SMK-37"></section>
+    <div class="start" id="start"><button id="go" type="button">SWITCH ON</button><p>SOUND ON · THEN PLAY THE KEYS OR THE PADS</p><p id="error" hidden></p></div>
+  </div>
+  <div class="notes">
+    <table>
+      <tr><th>SMK-37</th><th>Arctic Scream</th></tr>
+      <tr><td>Keys F3 .. G5</td><td>the FM-1's 27 keys (Z X C V … on the computer)</td></tr>
+      <tr><td>Keys C3 .. E3, G♯5 .. C6</td><td>the notes below and above, on the selected track</td></tr>
+      <tr><td>K1 · K2 · K3 · K4</td><td>MASTER · SELECT · ALGORITHM · PRESETS</td></tr>
+      <tr><td>K5 .. K8</td><td>KNOB 1 .. 4</td></tr>
+      <tr><td>16 pads</td><td>the white keys F3 .. G5, low notes on the bottom row; held higher on the pad, harder (aftertouch)</td></tr>
+      <tr><td>FADER BANK</td><td>A: the four tracks' levels · B: DELAY, SPACE, GRAIN, SHIMMER · C: SWELL, CUTOFF, DRIVE, SIZE. A fader takes over once it reaches the value</td></tr>
+      <tr><td>MOD wheel</td><td>SWELL</td></tr>
+      <tr><td>KNOB BANK held</td><td>the pads pick: the top row's first four the slots A .. D, the bottom row the eight Sami seasons</td></tr>
+      <tr><td>&lt; / &gt;</td><td>the previous / next page</td></tr>
+      <tr><td>The buttons</td><td>the FM-1's, by their SMK-37 names (the grey line under each)</td></tr>
+    </table>
+    <p>The <a href="manual.html" style="color:var(--ice)">manual</a>, the <a href="cheatsheet.html" style="color:var(--ice)">cheat sheet</a> and the
+      <a href="editor.html" style="color:var(--ice)">editor</a> are the FM-1's and apply here too. Install, the controls and the build:
+      <a href="https://github.com/PolarPatch/Arctic-Scream-SMK-37" style="color:var(--ice)">github.com/PolarPatch/Arctic-Scream-SMK-37</a>.</p>
+    <p>Built on the board layer of genkigenki's SMK-37 port of Felucca (GPL-3.0), on Dinghy by zvenson and Felucca by
+      Leo Kuroshita, Hügelton Instruments. Free and open source, GPL-3.0.</p>
+  </div>
+</div>
+<script src="smk_panel.js"></script>
+</body>
+</html>

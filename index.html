@@ -3,7 +3,7 @@
      Copyright (C) 2026 PolarPatch
      Arctic Scream SMK-37 in the browser: firmware/src/grimm.c built for the SMK-37 (BOARD_SMK37), on a fake keyboard
      (web/fm1_web.c), in the FM-1 page's worklet (worklet.js); the panel: web/smk_panel.js. The look: the FM-1 page's
-     (PolarPatch BlueWatch's cyberpunk colours). -->
+     (PolarPatch BlueWatch's cyberpunk colours), its glitching title (glitch.js). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -15,7 +15,7 @@
 @font-face { font-family: "Press Start 2P"; src: url("PressStart2P-Regular.ttf") format("truetype"); font-display: swap; }
 :root { --bg: #060410; --body: #161b22; --bed: #0a0d12; --part: #1c232c; --part-hi: #242c37; --edge: #30363d;
         --fg: #eaf6fa; --label: #a6afb9; --dim: #7fa8b8; --muted: #45606e; --lit: #22d3ee; --rec: #f85149;
-        --ice: #22d3ee; --line: #16222e;
+        --ice: #22d3ee; --aurora: #3fb950; --violet: #a78bfa; --plasma: #ff1a8c; --line: #16222e;
         --mono: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
         --pix: "Press Start 2P", var(--mono); color-scheme: dark; }
 html, body { background: var(--bg); }
@@ -23,9 +23,26 @@ body { margin: 0; color: var(--fg); font: 14px/1.6 system-ui, -apple-system, "Se
        background-image: radial-gradient(circle at 15% 0%, rgba(34, 211, 238, .07), transparent 45%),
                          radial-gradient(circle at 85% 100%, rgba(255, 26, 140, .05), transparent 45%); background-attachment: fixed; }
 .wrap { width: min(100% - 32px, 1320px); margin: 0 auto; }
-header { padding: 28px 0 8px; }
-h1 { font: 400 clamp(18px, 2.6vw, 30px)/1.3 var(--pix); color: var(--ice); margin: 0 0 8px; letter-spacing: .04em; }
-header p { color: var(--label); margin: 0; max-width: 72ch; }
+/* the title, as the FM-1 page's: ARCTIC SCREAM glitching (glitch.js), SMK-37 under it as wide (13 letters to 6, the
+   font is monospaced), the words to the right, Árktalaš holvvas over the aurora's four strokes */
+header { padding: clamp(24px, 5vw, 56px) 0 8px; }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 18px clamp(24px, 6vw, 3cm); }
+h1 { --h: clamp(17px, 3.3vw, 44px); margin: 0; white-space: nowrap; }
+h1 .gl { display: table; font-size: var(--h); text-shadow: 0 0 18px rgba(34, 211, 238, .25); }
+h1 .gl.big { font-size: calc(var(--h) * 13 / 6); color: var(--ice); margin-top: .1em; }
+.head p { flex: 1 1 22em; margin: 0; max-width: 34em; font-size: 17px; line-height: 1.55; color: var(--label); }
+.gl { position: relative; display: inline-block; font-family: var(--pix); font-weight: 400; line-height: 1;
+      color: var(--fg); letter-spacing: .02em; }
+.gl > i { position: absolute; inset: 0; font-style: normal; pointer-events: none; mix-blend-mode: screen;
+          clip-path: inset(100% 0 0 0); transform: translate(calc(var(--gx, 0px) * var(--k)), calc(var(--gy, 0px) * var(--k))); }
+.gl > i:nth-child(1) { color: var(--ice); --k: -1.1; }
+.gl > i:nth-child(2) { color: var(--plasma); --k: 1.2; }
+.gl > i:nth-child(3) { color: var(--violet); --k: .6; }
+.gl.big > i:nth-child(1) { color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { .gl > i { display: none; } }
+.holv { font: 400 clamp(14px, 2.2vw, 26px) var(--pix); color: var(--ice); margin-top: 22px; }
+.aurora { display: flex; gap: 6px; margin-top: 18px; }
+.aurora i { flex: 1; height: 3px; border-radius: 2px; background: currentColor; box-shadow: 0 0 8px currentColor; max-width: 120px; }
 
 /* the keyboard: everything in container units, so it scales as one piece */
 .stage { position: relative; container-type: inline-size; margin: 20px 0 12px; }
@@ -110,10 +127,14 @@ th { color: var(--dim); font-weight: 600; }
 <body>
 <div class="wrap">
   <header>
-    <h1>Arctic Scream SMK-37</h1>
-    <p>Arctic Scream on the M-VAVE SMK-37: the drones, the howls and the singing ice of the FM-1 firmware, on 37 keys,
-      16 pads, four faders and two wheels. This page runs the same code the keyboard will run. It is being built before
-      the keyboard is here: nothing on this page has run on an SMK-37 yet.</p>
+    <div class="head">
+      <h1 aria-label="Arctic Scream SMK-37"><span class="gl" data-t="ARCTIC SCREAM">ARCTIC SCREAM</span><span class="gl big" data-t="SMK-37">SMK-37</span></h1>
+      <p>Arctic Scream on the M-VAVE SMK-37: the drones, the howls and the singing ice of the FM-1 firmware, on 37 keys,
+        16 pads, four faders and two wheels. This page runs the same code the keyboard will run. It is being built before
+        the keyboard is here: nothing on this page has run on an SMK-37 yet.</p>
+    </div>
+    <div class="holv" lang="se">Árktalaš holvvas</div>
+    <div class="aurora" aria-hidden="true"><i style="color: var(--ice)"></i><i style="color: var(--aurora)"></i><i style="color: var(--violet)"></i><i style="color: var(--plasma)"></i></div>
   </header>
   <div class="stage">
     <section class="smk" id="smk" aria-label="The SMK-37"></section>
@@ -141,5 +162,6 @@ th { color: var(--dim); font-weight: 600; }
   </div>
 </div>
 <script src="smk_panel.js"></script>
+<script type="module" src="glitch.js"></script>
 </body>
 </html>

@@ -4,7 +4,10 @@
 # GR!MM changes (name, package identity): Copyright (C) 2026 GR!MM
 """Build Arctic Scream (Dinghy, on Felucca / SLOOP's platform): the app, the update loader and an installable .fwsc package.
 
-  tools/build.py [--release X.Y[-suffix]]
+  tools/build.py [--release X.Y[-suffix]] [--board fm1|smk37] [--model pro|elite|mke]
+BOARD=smk37 (or --board smk37): the M-Vave SMK-37 Pro build (-DBOARD_SMK37=1 for the app and the loader, identity
+SMK-37 Pro_977, its flash layout, build/arctic-scream-smk37.fwsc); MODEL=elite / mke: the same under the SMK-37 Elite's
+or the MKE-P37's name (their identity and loader), so M-Vave's updater still takes that unit's factory package.
 
 Outputs in build/: grimm.bin (app), loader/ota.bin (update loader),
 grimm.fwsc (package). See README.md for the toolchain and the SDK.
@@ -48,6 +51,9 @@ SDK_SHA256 = {
     "cfg/eq_cfg_hw.bin": "41167491bffed4651750719c973d2758adeb9021a5670d02d6a53c85ed80ea7d",
 }
 
+BOARD = "fm1"
+BOARD_DEFS = []                     # (smk37: -DBOARD_SMK37=1, and its model's name)
+MODELS = {"pro": "SMK-37 Pro", "elite": "SMK-37 Elite", "mke": "MKE-P37"}
 PRODUCT = "FM-1_977"                # Arctic Scream 1.x: 977, every release (FM-1_9NN: the installers resume its loader; the hub's
                                     # other firmwares hold 950, 95x, 961, so not Dinghy's 9 + minor); Dinghy is 99N
 VERSION = None                      # APP_VER for release builds (else DEFAULT_VERSION)
@@ -125,7 +131,7 @@ def ldr_wrap(image):
 def build_loader():
     LDR.mkdir(parents=True, exist_ok=True)
     src = FW / "loader"
-    flags = [*CFLAGS, "-Ifirmware/hal", "-Ifirmware/src", "-Ifirmware/gen"]
+    flags = [*CFLAGS, *BOARD_DEFS, "-Ifirmware/hal", "-Ifirmware/src", "-Ifirmware/gen"]
     tc_all(("cc", "-c", src / "crt0_ldr.S", "-o", LDR / "crt0_ldr.o"),
            ("cc", *flags, "-c", src / "loader.c", "-o", LDR / "loader.o"))
     elf = LDR / "loader.elf"
@@ -160,7 +166,7 @@ def words():                                    # (1.5) the screen reader's word
 
 def build_app():
     words()
-    flags = [*CFLAGS, "-Ifirmware/hal", "-Ifirmware/src", "-Ifirmware/gen", f'-DFELUCCA_ID="{PRODUCT}"', f'-DAPP_VER="{VERSION or DEFAULT_VERSION}"']
+    flags = [*CFLAGS, *BOARD_DEFS, "-Ifirmware/hal", "-Ifirmware/src", "-Ifirmware/gen", f'-DFELUCCA_ID="{PRODUCT}"', f'-DAPP_VER="{VERSION or DEFAULT_VERSION}"']
     cmds = [("cc", "-c", FW / "crt0.S", "-o", OUT / "crt0.o"),
             ("cc", "-c", FW / "hal" / "fm1_vec.S", "-o", OUT / "fm1_vec.o"),
             ("cc", "-c", FW / "hal" / "fm1_isr.S", "-o", OUT / "fm1_isr.o"),
@@ -168,7 +174,14 @@ def build_app():
             ("cc", *flags, "-c", FW / "src" / "grimm.c", "-o", OUT / "grimm.o")]
     tc_all(*cmds)
     elf = OUT / "grimm.elf"
-    tc("pi32v2/bin/ld", "--gc-sections", "-e", "_start", "-T", FW / "app.ld", OUT / "crt0.o", OUT / "fm1_vec.o",
+    ld = FW / "app.ld"
+    if APP_SLOT != 0x8DFBC:          # (the SMK-37's app slot: the same script, its XIP length)
+        txt = ld.read_text()
+        if txt.count("LENGTH = 0x8DFBC") != 1:
+            raise SystemExit("app.ld: the XIP LENGTH line was not found")
+        ld = OUT / "app.ld"
+        ld.write_text(txt.replace("LENGTH = 0x8DFBC", f"LENGTH = {APP_SLOT:#x}"))
+    tc("pi32v2/bin/ld", "--gc-sections", "-e", "_start", "-T", ld, OUT / "crt0.o", OUT / "fm1_vec.o",
        OUT / "fm1_isr.o", OUT / "fm1_cpu1.o", OUT / "grimm.o", "-o", elf)
     for sect in ("text.bin", "data.bin", "ramtext.bin"):
         (OUT / sect).unlink(missing_ok=True)
@@ -283,18 +296,33 @@ def mmio_check():
 
 
 def main():
-    global PRODUCT, VERSION
+    global PRODUCT, VERSION, BOARD, BOARD_DEFS, APP_SLOT
     ap = argparse.ArgumentParser()
+    ap.add_argument("--board", choices=["fm1", "smk37"], default=None, help="fm1 (default) or smk37 (default: $BOARD)")
+    ap.add_argument("--model", choices=sorted(MODELS), default=None, help="smk37: pro (default), elite or mke ($MODEL)")
     ap.add_argument("--release", metavar="X.Y", help="release build: the version string X.Y (identity FM-1_977 as always)")
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
     a = ap.parse_args()
-    name = "arctic-scream.fwsc"
+    BOARD = (a.board or os.environ.get("BOARD") or "fm1").lower().replace("-", "")
+    if BOARD not in ("fm1", "smk37"):
+        raise SystemExit(f"BOARD={BOARD}: use fm1 or smk37")
+    model = (a.model or (os.environ.get("MODEL") if BOARD == "smk37" else None) or "pro").lower()
+    if model not in MODELS or (model != "pro" and BOARD != "smk37"):
+        raise SystemExit(f"MODEL={model}: pro, elite or mke, with BOARD=smk37")
+    fm1pkg_make.set_board(BOARD)
+    APP_SLOT = fm1pkg_make.APP_SLOT
+    stem = "arctic-scream"
+    if BOARD == "smk37":
+        BOARD_DEFS = ["-DBOARD_SMK37=1"] + ([f'-DSMK_MODEL="{MODELS[model]}"'] if model != "pro" else [])
+        PRODUCT = MODELS[model] + "_977"
+        stem = "arctic-scream-smk37" + ("" if model == "pro" else "-" + model)
+    name = f"{stem}.fwsc"
     if a.release:                   # one digit each: the identity has room for two (X.Y; a .Z only in the text)
         m = re.fullmatch(r"(\d)\.(\d)(\.\d)?(-[A-Za-z0-9]+)?", a.release)
         if not m:
             raise SystemExit(f"--release {a.release}: use X.Y, X.Y.Z or X.Y-suffix, one digit each")
         VERSION = m[1] + "." + m[2] + (m[3] or "")
-        name = f"arctic-scream-{a.release}.fwsc"
+        name = f"{stem}-{a.release}.fwsc"
     fm1pkg_make.SDK = a.sdk
     for rel, sha in SDK_SHA256.items():          # fail early without the SDK
         if hashlib.sha256(fm1pkg_make.sdk_file(rel)).hexdigest() != sha:
@@ -317,7 +345,7 @@ def main():
     (OUT / name).write_bytes(pkg)
     print(f"app      {OUT / 'grimm.bin'}  {len(img)} B")
     print(f"loader   {LDR / 'ota.bin'}  {len(ota)} B")
-    print(f"package  {OUT / name}  {len(pkg)} B, identity {PRODUCT}")
+    print(f"package  {OUT / name}  {len(pkg)} B, identity {PRODUCT}, board {BOARD}")
     return 0
 
 

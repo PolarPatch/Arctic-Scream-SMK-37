@@ -39,7 +39,38 @@ static uint32_t fm1_ticks(void) { return web_ticks(); }   /* 24 MHz, as the FM-1
 
 /* ---- the panel: keys (bit k = key k, 0 = F3), buttons (bit = BTN_ id), encoders (ENC_ id), LEDs (fm1_led_key ids:
  * 0..13 the buttons, 14 + k the keys) */
+#if BOARD_SMK37
+/* (Arctic Scream SMK-37) the keyboard's extras, as hal/smk_input.h gives them to the app (firmware/src/smk.c); the
+ * page (web/smk_panel.js) sets them through web_smk, and reads the pads' colours (web_pad_rgb) and the extra LEDs */
+#define FM1_NKEY 37u
+#define SMK_NPAD 16u
+#define SMK_KEY_F3 5u
+enum { SMK_B_KNOB_BANK = 14, SMK_B_FADER_BANK = 15, SMK_B_LEFT = 16, SMK_B_RIGHT = 17 };
+static struct {
+    uint32_t notes, buttons, xbuttons, pressed_x;
+    uint8_t fader[4], pad_press[SMK_NPAD], pad_st[SMK_NPAD];
+    uint16_t wheel[2];
+} fm1_in;
+static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
+#define SMK_WHITE_OF_PAD(p) ((p) < 8u ? (p) + 8u : (p) - 8u)   /* (the bottom row: the low notes) */
+static uint32_t smk_note_led, smk_xled, web_pad_rgbv[SMK_NPAD], web_pad_notes;
+static uint16_t smk_extq[32];
+static uint8_t smk_extq_w, smk_extq_r;
+static int32_t smk_extkey_take(void)
+{
+    int32_t v = -1;
+    if (smk_extq_r != smk_extq_w) v = smk_extq[smk_extq_r], smk_extq_r = (uint8_t)((smk_extq_r + 1u) % 32u);
+    return v;
+}
+static void smk_led_extra(uint32_t bit, int on) { smk_xled = on ? smk_xled | 1u << (bit - 14u) : smk_xled & ~(1u << (bit - 14u)); }
+static void padled_set(uint32_t pad, uint8_t r, uint8_t g, uint8_t b)
+{
+    if (pad < SMK_NPAD) web_pad_rgbv[pad] = (uint32_t)r << 16 | (uint32_t)g << 8 | b;
+}
+static void padled_flush(void) {}
+#else
 static struct { uint32_t notes, buttons; } fm1_in;
+#endif
 static uint32_t web_pressed, web_released, web_notes_pressed, web_led_btn, web_led_key;
 static uint32_t web_key_mask, web_key_tap;     /* the keys held; pressed and let go since the last poll */
 static int32_t web_enc_steps[7];
@@ -58,6 +89,9 @@ static void fm1_led_key(uint32_t id, int on)
     if (id >= 14u + 27u) return;
     if (on) *m |= 1u << bit;
     else *m &= ~(1u << bit);
+#if BOARD_SMK37
+    smk_note_led = web_led_key;
+#endif
 }
 
 static void fm1_led_glow(uint32_t id, int on) { (void)id; (void)on; }   /* (the glow: not shown here) */
@@ -214,8 +248,12 @@ static void platform_poll(void)                 /* one call = one millisecond */
 {
     static int32_t blk[2u * HALF_FRAMES];
     uint32_t i, k10;
+#if BOARD_SMK37
+    fm1_in.notes = web_key_mask | web_key_tap | web_pad_notes;   /* (the pads: their white keys) */
+#else
     fm1_in.notes = web_key_mask | web_key_tap;  /* a key tapped between two polls is down for this one (the FM-1 scans
                                                  * at 10 kHz: no press is shorter than its millisecond there) */
+#endif
     web_key_tap = 0;
     fm1_ms++;
     web_knob_avg += (web_knob * 16 - web_knob_avg) / 8;    /* platform.c: the knob, smoothed, squared */
@@ -306,3 +344,26 @@ EXPORT uint32_t web_sysex_busy(void) { return web_sx_in_ready; }
 EXPORT uint8_t *web_sysex_out_buf(void) { return web_sx_out; }
 EXPORT uint32_t web_sysex_out_len(void) { return web_sx_out_n; }
 EXPORT void web_sysex_out_clear(void) { web_sx_out_n = 0; }
+
+#if BOARD_SMK37
+/* (Arctic Scream SMK-37) kind 0: fader a (0..3) to b (0..127); 1: the mod wheel, b 0..127 (raw as the keyboard's:
+ * ~629 at rest .. ~474 up); 2: pad a (0..15, 0..7 the top row) pressed with pressure b (0: let go); 3: keybed key a
+ * (0..36: an outer one, C3..E3, G#5..C6) with velocity b (0: let go); 4: an extra button a (14 KNOB BANK, 15 FADER
+ * BANK, 16 <, 17 >) tapped */
+EXPORT void web_smk(uint32_t kind, uint32_t a, uint32_t b)
+{
+    if (b > 127u) b = 127u;
+    if (kind == 0u && a < 4u) fm1_in.fader[a] = (uint8_t)b;
+    else if (kind == 1u) fm1_in.wheel[1] = (uint16_t)(629u - b * 155u / 127u);
+    else if (kind == 2u && a < SMK_NPAD) {
+        uint32_t bit = 1u << SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(a)];
+        fm1_in.pad_press[a] = (uint8_t)b, fm1_in.pad_st[a] = b ? 0x80u : 0u;
+        if (b && !(web_pad_notes & bit)) web_notes_pressed |= bit;
+        web_pad_notes = b ? web_pad_notes | bit : web_pad_notes & ~bit;
+    } else if (kind == 3u && a < FM1_NKEY && (uint8_t)(smk_extq_w + 1u) % 32u != smk_extq_r)
+        smk_extq[smk_extq_w] = (uint16_t)(a << 8 | b), smk_extq_w = (uint8_t)((smk_extq_w + 1u) % 32u);
+    else if (kind == 4u && a >= 14u && a < 18u) fm1_in.pressed_x |= 1u << (a - 14u);
+}
+EXPORT uint32_t *web_pad_rgb(void) { return web_pad_rgbv; }
+EXPORT uint32_t web_xled(void) { return smk_xled; }
+#endif

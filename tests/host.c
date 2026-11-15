@@ -28,7 +28,40 @@
 #define HALF_FRAMES 256u
 
 static volatile uint32_t fm1_ms;
+#if BOARD_SMK37
+/* (Arctic Scream SMK-37) the keyboard's extras, as hal/smk_input.h gives them to the app (firmware/src/smk.c); the
+ * script: "fader F V" (0..127), "mod RAW" (the mod wheel's raw, up = lower: ~629 rest .. ~474 top), "pad P V" (a hardware
+ * pad 0..15: 0..7 the top row; V its pressure, 0 let go), "okey K V" (keybed key 0..36, an outer one: C3..E3,
+ * G#5..C6; V the velocity, 0 let go), "xbtn B" (a tap: 14 KNOB BANK, 15 FADER BANK, 16 <, 17 >) */
+#define FM1_NKEY 37u
+#define SMK_NPAD 16u
+#define SMK_KEY_F3 5u
+enum { SMK_B_KNOB_BANK = 14, SMK_B_FADER_BANK = 15, SMK_B_LEFT = 16, SMK_B_RIGHT = 17 };
+static struct {
+    uint32_t notes, buttons, xbuttons, pressed_x;
+    uint8_t fader[4], pad_press[SMK_NPAD], pad_st[SMK_NPAD];
+    uint16_t wheel[2];
+} fm1_in;
+static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
+#define SMK_WHITE_OF_PAD(p) ((p) < 8u ? (p) + 8u : (p) - 8u)   /* (the bottom row: the low notes) */
+static uint32_t smk_note_led, smk_xled, host_pad_rgb[SMK_NPAD];
+static uint16_t smk_extq[32];
+static uint8_t smk_extq_w, smk_extq_r;
+static int32_t smk_extkey_take(void)
+{
+    int32_t v = -1;
+    if (smk_extq_r != smk_extq_w) v = smk_extq[smk_extq_r], smk_extq_r = (uint8_t)((smk_extq_r + 1u) % 32u);
+    return v;
+}
+static void smk_led_extra(uint32_t bit, int on) { smk_xled = on ? smk_xled | 1u << (bit - 14u) : smk_xled & ~(1u << (bit - 14u)); }
+static void padled_set(uint32_t pad, uint8_t r, uint8_t g, uint8_t b)
+{
+    if (pad < SMK_NPAD) host_pad_rgb[pad] = (uint32_t)r << 16 | (uint32_t)g << 8 | b;
+}
+static void padled_flush(void) {}
+#else
 static struct { uint32_t notes, buttons; } fm1_in;
+#endif
 static uint32_t host_edges, host_rel, host_tap;   /* buttons pressed, let go since the last call; tapped (up next ms) */
 static uint32_t fm1_input_edges(uint32_t *released)
 {
@@ -51,6 +84,9 @@ static uint32_t host_lit;                       /* (1.4) the 27 keys' lights, as
 static void fm1_led_key(uint32_t id, int on)
 {
     if (id >= 14u && id < 14u + 27u) host_lit = on ? host_lit | 1u << (id - 14u) : host_lit & ~(1u << (id - 14u));
+#if BOARD_SMK37
+    smk_note_led = host_lit;
+#endif
 }
 static void fm1_led_glow(uint32_t id, int on) { (void)id; (void)on; }
 
@@ -250,7 +286,7 @@ static void app_main(void);
  * BPMx10 0: none from T), "T probe" (the clock's and the sequencer's state out: tests/probe.c) */
 typedef struct { uint32_t t, keys; int btn; uint8_t st, d1, d2; int enc, steps, kind, src; uint32_t a, b;
                  const uint8_t *sx; uint32_t sxn; } host_ev_t;
-enum { HK_PLAIN, HK_CLOCK, HK_PROBE };          /* (kind) */
+enum { HK_PLAIN, HK_CLOCK, HK_PROBE, HK_FADER, HK_MOD, HK_PAD, HK_OKEY, HK_XBTN };   /* (kind; the last five: the SMK-37) */
 static void host_probe(void);                   /* (tests/probe.c) */
 #define CHORD1 (1u << 7 | 1u << 11 | 1u << 14)                  /* C E G (C4 .. G4 at OCTAVE +0) */
 #define CHORD2 (1u << 2 | 1u << 5 | 1u << 9)                   /* G Bb D (G3 .. D4) */
@@ -317,6 +353,13 @@ static void read_script(const char *path)
         else if (!strcmp(what, "down")) { sscanf(line, "%*u %*s %d", &e.btn); e.btn |= 0x100; }
         else if (!strcmp(what, "up")) { sscanf(line, "%*u %*s %d", &e.btn); e.btn |= 0x200; }
         else if (!strcmp(what, "enc")) { sscanf(line, "%*u %*s %d %d", &e.enc, &e.steps); }
+#if BOARD_SMK37
+        else if (!strcmp(what, "fader") || !strcmp(what, "mod") || !strcmp(what, "pad") || !strcmp(what, "okey") ||
+                 !strcmp(what, "xbtn")) {
+            sscanf(line, "%*u %*s %u %u", &e.a, &e.b);
+            e.kind = what[0] == 'f' ? HK_FADER : what[0] == 'm' ? HK_MOD : what[0] == 'p' ? HK_PAD : what[0] == 'o' ? HK_OKEY : HK_XBTN;
+        }
+#endif
         else if (!strcmp(what, "sysex")) {
             char *q = strstr(line, "sysex") + 5, *end;
             unsigned long v;
@@ -491,6 +534,26 @@ static void platform_poll(void)                 /* one call = one millisecond */
         } else if (script[step].kind == HK_CLOCK) {
             hg.t0 = (uint64_t)script[step].t * 24000u, hg.k = 0, hg.bpm10 = script[step].a;
             hg.end = script[step].t + script[step].b, hg.src = (uint32_t)script[step].src;
+#if BOARD_SMK37
+        } else if (script[step].kind >= HK_FADER) {
+            uint32_t A = script[step].a, B = script[step].b;
+            switch (script[step].kind) {
+            case HK_FADER: if (A < 4u) fm1_in.fader[A] = (uint8_t)(B > 127u ? 127u : B); break;
+            case HK_MOD: fm1_in.wheel[1] = (uint16_t)A; break;
+            case HK_PAD:
+                if (A < SMK_NPAD) {
+                    uint32_t bit = 1u << SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(A)];
+                    fm1_in.pad_press[A] = (uint8_t)(B > 127u ? 127u : B), fm1_in.pad_st[A] = B ? 0x80u : 0u;
+                    fm1_in.notes = B ? fm1_in.notes | bit : fm1_in.notes & ~bit;
+                }
+                break;
+            case HK_OKEY:
+                if (A < FM1_NKEY && (uint8_t)(smk_extq_w + 1u) % 32u != smk_extq_r)
+                    smk_extq[smk_extq_w] = (uint16_t)(A << 8 | (B > 127u ? 127u : B)), smk_extq_w = (uint8_t)((smk_extq_w + 1u) % 32u);
+                break;
+            default: if (A >= 14u && A < 18u) fm1_in.pressed_x |= 1u << (A - 14u); break;
+            }
+#endif
         } else if (script[step].kind == HK_PROBE) {
             host_probe();
             if (host_feed) printf("usbpk %u %d\n", fm1_ms, (int)host_usb_pk), host_usb_pk = 0;

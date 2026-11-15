@@ -63,6 +63,7 @@ class Grimm extends AudioWorkletProcessor {
       if (k >= 0) this.sx[k] = f; else this.sx.push(f);      // (a track's sound or sequence waiting: the newest in its place)
     }
     else if (m.type === "panic" && ex.web_panic) ex.web_panic();
+    else if (m.type === "smk" && ex.web_smk) ex.web_smk(m.k, m.a, m.b);   // (Arctic Scream SMK-37: smk_panel.js)
   }
 
   // Asyncify (https://kripken.github.io/blog/wasm/2019/07/16/asyncify.html): the first call of web_yield unwinds the
@@ -100,6 +101,11 @@ class Grimm extends AudioWorkletProcessor {
       transfer.push(msg.fb.buffer);
     }
     const leds = [ex.web_lit_buttons() >>> 0, ex.web_lit_keys() >>> 0];
+    if (ex.web_pad_rgb) {                                    // (Arctic Scream SMK-37: the pads' colours, the extras' LEDs)
+      const pads = Array.from(new Uint32Array(ex.memory.buffer, ex.web_pad_rgb(), 16));
+      pads.push(ex.web_xled() >>> 0);
+      if (pads.join() !== this.sentPads) this.sentPads = pads.join(), msg.pads = pads;
+    }
     if (leds.join() !== this.sentLeds) {
       this.sentLeds = leds.join();
       msg.leds = leds;
@@ -112,7 +118,7 @@ class Grimm extends AudioWorkletProcessor {
     }
     const sq = ex.web_seq_state ? ex.web_seq_state() >>> 0 : 0;   // (the sequencer: the editor's playhead)
     if (sq !== this.sentSeq) this.sentSeq = msg.seq = sq;
-    if (msg.fb || msg.leds || msg.settings || msg.seq !== undefined) this.port.postMessage(msg, transfer);
+    if (msg.fb || msg.leds || msg.settings || msg.seq !== undefined || msg.pads) this.port.postMessage(msg, transfer);
   }
 
   pull(n) {                                                  // n frames of the FM-1's 44.1 kHz (at most 1024)

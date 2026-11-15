@@ -73,18 +73,28 @@ static void rt_out(uint32_t st, uint32_t due)   /* audio ISR: a realtime byte ou
 #include "fm1_irq.h"
 #include "fm1_guard.h"
 #include "fm1_cpu1.h"
+#if BOARD_SMK37
+#include "smk_input.h"                          /* (the SMK-37's panel; its MASTER on K1, its battery on a mux) */
+#else
 #include "fm1_input.h"
+#endif
 #include "fm1_timer.h"
 #include "fm1_lcd_hw.h"
 #include "fm1_audio.h"
+#if !BOARD_SMK37
 #include "fm1_adc.h"
+#endif
 #include "bootguard.h"
 
 #ifndef APP_NAME
 #define APP_NAME "DINGHY"
 #endif
 #ifndef FELUCCA_ID
+#if BOARD_SMK37
+#define FELUCCA_ID SMK_MODEL "_977"             /* package identity (tools/build.py) */
+#else
 #define FELUCCA_ID "FM-1_977"                   /* package identity: Arctic Scream 1.x (tools/build.py) */
+#endif
 #endif
 #ifndef APP_VER
 #define APP_VER "0.0"
@@ -115,7 +125,11 @@ hl_boot_t hl_boot __attribute__((section(".noinit")));   /* (not static: the com
 #define FELUCCA_OTA 1
 #define FELUCCA_CDC 0
 #define FELUCCA_UAC 1
+#if BOARD_SMK37
+#define FELUCCA_UART 0                          /* (the SMK-37's TRS jack is an output; PH8 is a key-matrix row there) */
+#else
 #define FELUCCA_UART 1                          /* TRS MIDI IN (midi_uart.c) */
+#endif
 #define MIDI_RT_IN(st) rt_in(st, RT_USB)        /* (usb.c: the clock and START / CONTINUE / STOP, timed) */
 #define MIDI_RT_SOON() (ro_r != ro_w && (int32_t)(ro_t[ro_r % RTQ] - fm1_ticks()) < 28800)   /* (usb.c: a clock message
                                                  * out due within 1.2 ms: EP1 left free for it, rt_flush) */
@@ -155,6 +169,19 @@ static void rt_flush(void)
  * sample area: 0x97000..0xDF000, in what Felucca and its family keep their data in (0x97000..0xFBFFF: theirs, not
  * ours; a firmware finds its own magic missing and starts fresh), below the update's staging area (0xE0000). An
  * update writes the flash up to 0x93000 only: the samples stay. XIP reads it as plain data (fl_plain_window_init) */
+#if BOARD_SMK37
+/* the SMK-37 (fm1_flash.h's map): the settings and the saves at the start of the stock VM (FL_DATA, 0x9D000..), the
+ * samples in USRFLASH (FL_SMP: 160 KiB, four slots of 40); the calibration (0xC1000) only read */
+#define SETTINGS_AT 0x0009D000u
+#define SAMPLE_AREA 0x000C2000u
+#define SAMPLE_AREA_LEN 0x00028000u
+#define SMP_SLOT_SIZE (40u * 1024u)             /* (samples.c: 3.6 s at 22050 Hz) */
+#define SAVE_NSECT 6u
+static const uint32_t SAVE_SECT[SAVE_NSECT] = {0x9E000u, 0x9F000u, 0xA0000u, 0xA1000u, 0xA2000u, 0xA3000u};
+#define FL_RANGE_OK(off, n) (FL_IN(off, n, 0xBB000u, 0xC0000u) || FL_IN(off, n, SETTINGS_AT, 0xA4000u) || \
+                             FL_IN(off, n, SAMPLE_AREA, SAMPLE_AREA + SAMPLE_AREA_LEN))
+#define SMK_TRIM_AT 0x000C1000u                 /* USRTRIM: read, never written (FL_PROTECTED) */
+#else
 #define SETTINGS_AT 0x000FC000u                 /* one 4 KiB sector of Felucca's globals area */
 #define SAMPLE_AREA 0x00097000u                 /* Arctic Scream: the sample slots (samples.c) */
 #define SAMPLE_AREA_LEN 0x00048000u             /* 288 KiB: up to 0xDF000 */
@@ -166,6 +193,7 @@ static const uint32_t SAVE_SECT[SAVE_NSECT] = {0xDF000u, 0xE5000u, 0xE6000u, 0xE
 #define FL_RANGE_OK(off, n) (FL_IN(off, n, FL_OTA_LO, FL_OTA_HI) || FL_IN(off, n, SETTINGS_AT, SETTINGS_AT + 0x1000u) || \
                              FL_IN(off, n, SAMPLE_AREA, SAMPLE_AREA + SAMPLE_AREA_LEN) || FL_IN(off, n, 0xDF000u, 0xE0000u) || \
                              FL_IN(off, n, 0xE5000u, 0xE8000u) || FL_IN(off, n, 0xFD000u, 0xFF000u))
+#endif
 #include "fm1_flash.h"
 static uint8_t flash_ok;
 static int st_read(uint32_t off, void *dst, uint32_t n)
@@ -406,8 +434,10 @@ void fm1_timer5_irq(void)
             if (rt_usb_fast && usb.config)
                 ep1_rx();                       /* (one endpoint, its own SIE index: as uac_service) */
         }
+#if FELUCCA_UART
         if (sub % 5u == 3u)
             uart_midi_poll();
+#endif
         rt_flush();
         d = fm1_ticks() - t0;
         isr_in_audio += d;
@@ -417,8 +447,10 @@ void fm1_timer5_irq(void)
     rt_flush();
     if (owed & 1u)
         usb_poll();
+#if FELUCCA_UART
     if (sub % 5u == 3u)
         uart_midi_poll();                       /* (2 kHz: ~7 bytes a call at most, 31250 baud) */
+#endif
     owed = 0;
     d = fm1_ticks() - t0;
     if (d > hl.dur) hl.dur = d;
@@ -592,11 +624,16 @@ void fm1_cstart(void)
     flash_ok = fl_id_known(FL_FAR(fl_jedec_ram)());   /* either FM-1 chip (fm1_flash_id.h), else RAM only */
     if (flash_ok)
         fl_plain_window_init();                 /* Arctic Scream: the flash above 0x93000 (the samples) reads plain through XIP */
+
     ota_boot_cleanup();
     lcd_init();
     lcd_fill(0, 0, 240, 240, C_BLACK);
     fm1_input_init();
     fm1_adc_init();
+#if BOARD_SMK37
+    if (flash_ok)                               /* the unit's own key and pad curves (fm1_input_init: the stock defaults) */
+        (void)smk_trim_load(fm1_xip_ptr(SMK_TRIM_AT));
+#endif
     {                                           /* (2.2) the second core: started before the audio and the timers,
                                                  * interrupts off (felucca-bsp's finding); a new build may try it again
                                                  * where an older one gave it up */
@@ -608,7 +645,9 @@ void fm1_cstart(void)
     }
     fm1_audio_init(abuf, HALF_WORDS, isr_alnk0, 3);   /* (abuf is zero: .bss) */
     usb_start();
+#if FELUCCA_UART
     uart_midi_init();                           /* (the TRS jack; before TIMER5: port H's RMW) */
+#endif
     fm1_timer5_start(isr_timer5, 4);
     fm1_guard_lock_top();
     fm1_irq_enable_all();

@@ -11,6 +11,7 @@
  */
 #pragma once
 #include <stdint.h>
+#include "fm1_cc.h"
 #include "fm1_xip.h"
 #include "fm1_flash_id.h"            /* fl_id_known: the chips the FM-1 ships with */
 
@@ -36,18 +37,61 @@ static inline void *fl_far(void *p) { void *volatile q = p; return q; }
 #define T4_CNT          REG32(0x10804u)            /* TIMER4, 24 MHz free-running */
 
 #define FL_XIP(off)     FM1_XIP(off)              /* fm1_xip.h */
+#if BOARD_SMK37
+/* SMK-37 (genkigenki's layer, via GHOULBOX): an allow-list clear of what is the unit's own, at compile time and again
+ * in the RAM driver (FL_PROTECTED)
+ *   0x00000-0x03FFF  head (SPL, isd_config)          NEVER
+ *   0x04000-0x9CFFF  app area                         the update loader only
+ *   0x9D000-0xBAFFF  VM: the store (saves, settings)  FL_DATA
+ *   0xBB000-0xBFFFF  VM: the update loader's staging  FL_OTA
+ *   0xC0000-0xC0FFF  BTIF (Bluetooth pairing)         NEVER
+ *   0xC1000-0xC1FFF  USRTRIM (key/pad calibration)    NEVER (read: the velocity curves)
+ *   0xC2000-0xE9FFF  USRFLASH: the sample slots        FL_SMP
+ *   0xF4000-0xFDFFF  USR (stock resources)            NEVER
+ *   0xFF000-0xFFFFF  key_mac                          NEVER */
+#define FL_PLAIN_LO     0x0009D000u                /* the plain XIP window, from the VM */
+#define FL_DATA_LO      0x0009D000u
+#define FL_DATA_HI      0x000BB000u
+#define FL_OTA_LO       0x000BB000u
+#define FL_OTA_HI       0x000C0000u
+#define FL_SMP_LO       0x000C2000u
+#define FL_SMP_HI       0x000EA000u
+#define FL_HEAD_HI      0x00004000u
+#define FL_CAL_LO       0x000C0000u
+#define FL_CAL_HI       0x000C2000u
+#define FL_USRRES_LO    0x000F4000u
+#define FL_USRRES_HI    0x000FE000u
+#define FL_KEYMAC_LO    0x000FF000u
+#define FL_WIN_SAFE(lo, hi) ((lo) % 0x1000u == 0u && (hi) % 0x1000u == 0u && (lo) < (hi) && (lo) >= FL_HEAD_HI && \
+                             (hi) <= FL_KEYMAC_LO && ((hi) <= FL_CAL_LO || (lo) >= FL_CAL_HI) && \
+                             ((hi) <= FL_USRRES_LO || (lo) >= FL_USRRES_HI))
+_Static_assert(FL_WIN_SAFE(FL_DATA_LO, FL_DATA_HI) && FL_WIN_SAFE(FL_OTA_LO, FL_OTA_HI) && FL_WIN_SAFE(FL_SMP_LO, FL_SMP_HI),
+               "SMK: a window overlaps a protected range");
+/* [off, off + n) touches a protected range: the RAM driver's second net, whatever FL_RANGE_OK says */
+#define FL_HITS(off, n, lo, hi) ((uint32_t)(off) < (hi) && ((uint32_t)(off) >= (lo) || (uint32_t)(n) > (lo) - (uint32_t)(off)))
+#define FL_PROTECTED(off, n) (FL_HITS(off, n, 0u, FL_HEAD_HI) || FL_HITS(off, n, FL_CAL_LO, FL_CAL_HI) || \
+                              FL_HITS(off, n, FL_USRRES_LO, FL_USRRES_HI) || (uint32_t)(off) >= FL_KEYMAC_LO || \
+                              (uint32_t)(n) > FL_KEYMAC_LO - (uint32_t)(off))
+#else
+#define FL_PLAIN_LO     0x00093000u                /* the plain XIP window, from the FM-1's VM */
 #define FL_DATA_LO      0x00097000u                /* Felucca main store */
 #define FL_DATA_HI      0x000E0000u
 #define FL_GLOB_LO      0x000FC000u                /* Felucca superblock / globals */
 #define FL_GLOB_HI      0x000FF000u
 #define FL_OTA_LO       0x000E0000u                /* M-UPGRADE loader staging, ota.c */
 #define FL_OTA_HI       0x000E5000u
+#define FL_PROTECTED(off, n) 0
+#endif
 /* [off, off + n) inside [lo, hi), without wrapping: off + n can overflow, and
  * the 1 MiB part ignores the high address bits, so a wrapped range lands low. */
 #define FL_IN(off, n, lo, hi) ((uint32_t)(off) >= (lo) && (uint32_t)(off) <= (hi) && \
                                (uint32_t)(n) <= (hi) - (uint32_t)(off))
 /* Felucca's own store (projects, user samples; settings) */
+#if BOARD_SMK37
+#define FL_STORE_OK(off, n) (FL_IN(off, n, FL_DATA_LO, FL_DATA_HI) || FL_IN(off, n, FL_SMP_LO, FL_SMP_HI))
+#else
 #define FL_STORE_OK(off, n) (FL_IN(off, n, FL_DATA_LO, FL_DATA_HI) || FL_IN(off, n, FL_GLOB_LO, FL_GLOB_HI))
+#endif
 /* Where the RAM driver may erase / program. The app build allows only its own
  * data regions; the update loader (firmware/loader) defines its own window. */
 #ifndef FL_RANGE_OK
@@ -167,7 +211,7 @@ static RAMFN uint32_t fl_status_ram(void)                /* SR1 | SR2 << 8 */
 static RAMFN int fl_erase4k_ram(uint32_t off, uint32_t *took_us)
 {
     fl_saved_t s; int rc;
-    if (!FL_RANGE_OK(off, 0x1000u) || (off & 0xFFFu))
+    if (!FL_RANGE_OK(off, 0x1000u) || FL_PROTECTED(off, 0x1000u) || (off & 0xFFFu))
         return -1;
     if (fl_enter(&s)) return -2;
     fl_wren();
@@ -184,7 +228,7 @@ static RAMFN int fl_erase4k_ram(uint32_t off, uint32_t *took_us)
 static RAMFN int fl_prog_ram(uint32_t off, const uint8_t *src, uint32_t n, uint32_t *took_us)
 {
     fl_saved_t s; int rc; uint32_t i;
-    if (!FL_RANGE_OK(off, n) ||
+    if (!FL_RANGE_OK(off, n) || FL_PROTECTED(off, n) ||
         n == 0 || n > 256u || ((off & 0xFFu) + n) > 256u) return -1;    /* one page, no wrap */
     if (fl_enter(&s)) return -2;
     fl_wren();
@@ -218,11 +262,11 @@ static RAMFN int fl_read_ram(uint32_t off, uint8_t *dst, uint32_t n)   /* 0x0B f
 static void fl_plain_window_init(void)
 {
     SFCENC_CON &= (uint8_t)~2u;
-    SFCENC_UNENC_L = FL_XIP(0x93000u);            /* 0x0208F000 */
+    SFCENC_UNENC_L = FL_XIP(FL_PLAIN_LO);         /* (FM-1: 0x0208F000) */
     SFCENC_UNENC_H = 0x07FFFFFFu;
     SFCENC_CON |= 2u;
     __asm__ volatile("cli" ::: "memory");
-    fl_inval(0x93000u, 0x100000u - 0x93000u);     /* drop any decrypted lines */
+    fl_inval(FL_PLAIN_LO, 0x100000u - FL_PLAIN_LO);   /* drop any decrypted lines */
     __asm__ volatile("csync\n\tsti" ::: "memory");
 }
 

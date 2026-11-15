@@ -12,12 +12,23 @@
 #define FELUCCA_OTA 1
 #define FELUCCA_OTA_DRYRUN 0
 #define FELUCCA_USB_PID 0x0002
+#include "fm1_cc.h"                             /* BOARD_SMK37 */
+#if BOARD_SMK37
+#define FELUCCA_ID "ota-" SMK_MODEL "_900"
+#else
 #define FELUCCA_ID "ota-FM-1_900"
+#endif
 #define RING_PUBLISH() __asm__ volatile("" ::: "memory")
 #include "fm1_time.h"
 #include "fm1_sys.h"
 /* the loader may write the app area and erase update records; never the head */
+#if BOARD_SMK37
+/* SMK-37 (genkigenki's layer, via GHOULBOX): the app area 0x4000..0x9CFFF, records in the VM 0x9D000..0xBFFFF only:
+ * never BTIF / USRTRIM 0xC0000..0xC1FFF (the calibration), USR 0xF4000.., key_mac (the RAM driver refuses them too) */
+#define FL_RANGE_OK(off, n) (FL_IN(off, n, 0x4000u, 0x9D000u) || FL_IN(off, n, 0x9D000u, 0xC0000u))
+#else
 #define FL_RANGE_OK(off, n) (FL_IN(off, n, 0x4000u, 0x93000u) || FL_IN(off, n, 0x93000u, 0xFC000u))
+#endif
 #include "fm1_flash.h"
 #include "../src/libc.c"
 #include "../src/usb.c"

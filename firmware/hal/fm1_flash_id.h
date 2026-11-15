@@ -12,4 +12,9 @@
 #define FL_ID_UC25HQ80 0xB36014u
 
 /* a macro, never a call: the loader and the RAM code may not reach into XIP */
+#define FL_ID_SMK37    0xEB6014u                /* the SMK-37 Pro's part (genkigenki: read over the mask ROM) */
+#if BOARD_SMK37
+#define fl_id_known(id) ((id) == FL_ID_SMK37 || (id) == FL_ID_P25Q80 || (id) == FL_ID_UC25HQ80)
+#else
 #define fl_id_known(id) ((id) == FL_ID_P25Q80 || (id) == FL_ID_UC25HQ80)
+#endif

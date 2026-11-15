@@ -14,9 +14,15 @@
  * the header saying so (tests/quick_test.py); "eng E slatch L": the selected track's source, the LATCH saved in the
  * sound PRESETS last loaded on it (-1: none) (tests/latch_test.py); (1.4) "lit L": the keys lit (hex, bit k: key k,
  * tests/latch_test.py) */
+#if BOARD_SMK37
+static void smk_probe(void);
+#endif
 static void host_probe(void)
 {
     uint32_t i;
+#if BOARD_SMK37
+    smk_probe();                                /* (Arctic Scream SMK-37: firmware/src/smk.c) */
+#endif
     printf("probe %u play %u seq %u ext %u bpm %u own %d ticks %u pulses %u done %u pos %d,%d,%d,%d mch %u clk %u links %u "
            "notes", fm1_ms, playing, seq_on, ck_ext, ck_bpm10, (int)seq_bpm, seq_ticks, ck.p, ck.done, (int)seq[0].pos,
            (int)seq[1].pos, (int)seq[2].pos, (int)seq[3].pos, set.mch, set.clk, set.nlk);

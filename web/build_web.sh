@@ -26,6 +26,13 @@ python3 tools/gen_words.py firmware/words.tsv web/words firmware/gen/ann_words.h
     -o build/web/grimm.wasm firmware/src/grimm.c
 "$WASM_OPT" build/web/grimm.wasm --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext \
     --enable-mutable-globals --asyncify --pass-arg=asyncify-imports@env.web_yield -O2 -o web/dist/grimm.wasm
+# (Arctic Scream SMK-37) the same, built for the SMK-37: its page web/smk37.html, its panel web/smk_panel.js
+"$EMCC" -O2 -Wall -Wno-unused-function -DGRIMM_WEB -DBOARD_SMK37=1 -DAPP_VER="\"${APP_VER:-2.1.1}\"" -Ifirmware/src -Ifirmware/gen \
+    --no-entry -sSTANDALONE_WASM -sFILESYSTEM=0 -sSTACK_SIZE=262144 -sINITIAL_MEMORY=16777216 \
+    -o build/web/grimm-smk37.wasm firmware/src/grimm.c
+"$WASM_OPT" build/web/grimm-smk37.wasm --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext \
+    --enable-mutable-globals --asyncify --pass-arg=asyncify-imports@env.web_yield -O2 -o web/dist/grimm-smk37.wasm
+cp web/smk37.html web/smk_panel.js web/dist/
 cp web/index.html web/cheatsheet.html web/manual.html web/panel.js web/site.js web/glitch.js web/demos.json web/worklet.js assets/fonts/Terminus-LICENSE.txt web/dist/   # (the screen font: SIL OFL 1.1)
 mkdir -p web/dist/words && cp web/words/*.json web/dist/words/   # (1.5: the screen reader's words files, every one)
 mkdir -p web/dist/screens && cp docs/manual/screens/*.png web/dist/screens/   # (the visual manual's screens)

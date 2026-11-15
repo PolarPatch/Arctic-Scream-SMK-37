@@ -2562,6 +2562,7 @@ static void app_idle(void)
     idle_ok = 1;
 }
 
+#include "smk.c"                                /* (Arctic Scream SMK-37: the keyboard's extras; nothing on the FM-1) */
 /* the main loop's state, kept between app_step's calls (app_main's locals once; static, so a host that cannot run a
  * loop that never returns, as VIBE FM, calls app_start once and app_step every millisecond) */
 static uint32_t prev, b_down, b_used, t_down[14], rec, back_page = PG_HOME, pf_keys, pf_back = PG_HOME, t_touch, as_last,
@@ -2635,6 +2636,7 @@ static void app_step(void)                      /* one pass of the main loop: on
     uint32_t k, keys, down, up, rel, b, n, lit = 0, base = (uint32_t)(KEY0 + 12 * set.oct);
     int32_t d;
     platform_poll();
+    smk_poll();                                 /* (the SMK-37's outer keys, faders, wheels, pads' pressure) */
     if (fm1_in.notes != prev || fm1_in.buttons) t_touch = t_hand = fm1_ms;   /* (the autosave waits for the hands
                                              * to rest; SCREEN OFF counts from their last touch) */
 
@@ -3032,6 +3034,10 @@ static void app_step(void)                      /* one pass of the main loop: on
         else if (scr_aur) ui_aurora(fm1_ms);
         else ui_update(set.oct);
         idle_ok = 0;
+    }
+    {                                           /* (the SMK-37's pads' lights, ~30 times a second) */
+        static uint32_t pad_t;
+        if (fm1_ms - pad_t >= 33u) pad_t = fm1_ms, smk_pads();
     }
     if (midi_touch) t_touch = fm1_ms, midi_touch = 0;
 #ifdef DINGHY_HOST

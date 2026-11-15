@@ -1,0 +1,144 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 PolarPatch */
+/* Arctic Scream SMK-37: what the keyboard has beyond the FM-1's panel (hal/smk_input.h reads it; the FM-1's keys,
+ * buttons and knobs arrive as on the FM-1). The outer keys, the faders and their banks, the wheels, the pads'
+ * pressure and their lights. The approach after GHOULBOX, AMB-1 and Skiff on the SMK-37 (soft takeover, banks),
+ * written anew. Main loop only (app_step: smk_poll; ui_update: smk_pads).
+ *   outer keys   C3..E3 and G#5..C6: the notes below and above the FM-1's 27, on the selected track (as MIDI in)
+ *   faders       FADER BANK steps A, B, C (its LED lit off A); a fader takes over only once it reaches the value
+ *                (it never jumps); A: T1..T4 LEVEL; B: DELAY, SPACE, GRAIN, SHIMMER; C: SWELL, MASTER CUTOFF,
+ *                DRIVE, SPACE SIZE
+ *   mod wheel    SWELL (as CC 1 from a MIDI keyboard)
+ *   pads         their pressure to the selected track as aftertouch (Holvut and the screams: harder)
+ *   pad lights   a lit key's pad in the accent; the rest a dim glow: JAHKI's season, or the accent */
+
+#if BOARD_SMK37
+#define SMK_NBANK 3u
+static uint32_t smk_bank;                       /* FADER BANK: 0 A, 1 B, 2 C */
+static uint8_t smk_fseen[4] = {0xFF, 0xFF, 0xFF, 0xFF};   /* the faders as last read (0xFF: not yet) */
+static uint8_t smk_ftaken;                      /* bit f: fader f has the value (soft takeover) */
+static uint8_t smk_oheld[FM1_NKEY];             /* an outer key's note (+1) while it is down */
+static uint8_t smk_press_was;
+static int32_t smk_mod_was = -1, smk_mod_lo = 474, smk_mod_hi = 629;   /* the mod wheel: last value; its travel (raw,
+                                                 * up = lower), widened to what it has shown (units differ) */
+/* bank b, fader f: (page, knob, track: 4 = the selected); SWELL: page NPAGE (its own) */
+static const uint8_t SMK_FAD[SMK_NBANK][4][3] = {
+    {{PG_MIX1, 0, 0}, {PG_MIX1, 0, 1}, {PG_MIX1, 0, 2}, {PG_MIX1, 0, 3}},
+    {{PG_DELAY, 3, 4}, {PG_SPACE, 2, 4}, {PG_GRAIN, 3, 4}, {PG_AIR, 1, 4}},
+    {{NPAGE, 0, 4}, {PG_MASTER, 0, 4}, {PG_DRIVE, 3, 4}, {PG_SPACE, 0, 4}},
+};
+static const char *const SMK_BANK_NAME[SMK_NBANK] = {"FADERS: LEVELS", "FADERS: FX", "FADERS: SWELL, TONE"};
+
+static int32_t smk_fad_now(const uint8_t *F)    /* where the fader's parameter is now, 0..127 */
+{
+    volatile int32_t *p;
+    uint32_t s = sel;
+    int32_t lo, hi, v;
+    if (F[0] == NPAGE) return sw_cc;
+    sel = F[2] < 4u ? F[2] : sel;
+    p = knob_param(F[0], F[1]), lo = knob_min(F[0], F[1]), hi = knob_max(F[0], F[1]);
+    v = p && hi > lo ? (int32_t)((*p - lo) * 127 / (hi - lo)) : 0;
+    sel = s;
+    return v;
+}
+static void smk_fad_set(const uint8_t *F, uint32_t val)
+{
+    uint8_t L[5];
+    if (F[0] == NPAGE) { sw_cc = (int32_t)val; return; }
+    L[0] = 0, L[1] = F[0], L[2] = F[1], L[3] = (uint8_t)(F[2] < 4u ? F[2] : sel), L[4] = 0;
+    cc_apply(L, val);
+}
+
+static void smk_poll(void)
+{
+    int32_t e;
+    uint32_t f;
+    if (fm1_in.pressed_x & 1u << (SMK_B_FADER_BANK - 14u)) {   /* FADER BANK: the next bank, each fader to be taken again */
+        smk_bank = (smk_bank + 1u) % SMK_NBANK, smk_ftaken = 0;
+        hd_say(SMK_BANK_NAME[smk_bank]);
+    }
+    fm1_in.pressed_x = 0;
+    smk_led_extra(SMK_B_FADER_BANK, smk_bank != 0u);
+    for (f = 0; f < 4u; f++) {
+        const uint8_t *F = SMK_FAD[smk_bank][f];
+        uint32_t v = fm1_in.fader[f];
+        int32_t now;
+        if (smk_fseen[f] == 0xFF) { smk_fseen[f] = (uint8_t)v; continue; }   /* (at power-on: where it stands) */
+        if (v == smk_fseen[f]) continue;
+        now = smk_fad_now(F);
+        if (!(smk_ftaken >> f & 1u) &&           /* taken once it reaches the value, or passes it */
+            (((int32_t)v - now <= 2 && now - (int32_t)v <= 2) || (smk_fseen[f] < now) != ((int32_t)v < now)))
+            smk_ftaken |= (uint8_t)(1u << f);
+        smk_fseen[f] = (uint8_t)v;
+        if (smk_ftaken >> f & 1u) smk_fad_set(F, v), midi_touch = 1;   /* (app_step: t_touch) */
+    }
+    if (fm1_in.wheel[1]) {                      /* the mod wheel: SWELL (a dead band at rest) */
+        int32_t w = fm1_in.wheel[1], v;
+        if (w < smk_mod_lo) smk_mod_lo = w;
+        if (w > smk_mod_hi) smk_mod_hi = w;
+        v = (smk_mod_hi - 6 - w) * 127 / (smk_mod_hi - 6 - smk_mod_lo);
+        v = clamp(v, 0, 127);
+        if (smk_mod_was < 0 || v > smk_mod_was + 1 || v < smk_mod_was - 1 || (v != smk_mod_was && (v == 0 || v == 127)))
+            smk_mod_was = v, sw_cc = v;
+    }
+    {                                           /* the pads' pressure: the selected track's aftertouch */
+        uint32_t p, m = 0;
+        for (p = 0; p < SMK_NPAD; p++)
+            if (fm1_in.pad_press[p] > m) m = fm1_in.pad_press[p];
+        if (m != smk_press_was) smk_press_was = (uint8_t)m, hw_press[sel] = (uint8_t)m;
+    }
+    while ((e = smk_extkey_take()) >= 0) {      /* the outer keys: the notes below and above, the selected track */
+        uint32_t k = (uint32_t)e >> 8, n;
+        if (k >= FM1_NKEY) continue;
+        if (e & 0xFF) {
+            int32_t nn = (int32_t)(KEY0 + 12 * set.oct) + (int32_t)k - (int32_t)SMK_KEY_F3;
+            if (nn < 0 || nn > 127) continue;
+            n = sc_snap((uint32_t)nn);
+            if (smk_oheld[k]) nq_note(NQ_OFF, sel, 0, MIDI_ID(smk_oheld[k] - 1u));
+            nq_note(trk[sel].latch ? NQ_TOGGLE : NQ_ON, sel, n, MIDI_ID(n));
+            smk_oheld[k] = (uint8_t)(n + 1u);
+            ch_last = (int32_t)n;
+            midi_touch = 1;
+        } else if (smk_oheld[k]) {
+            if (!trk[sel].latch) nq_note(NQ_OFF, sel, 0, MIDI_ID(smk_oheld[k] - 1u));
+            smk_oheld[k] = 0;
+        }
+    }
+}
+
+static void smk_pads(void)                      /* the pads' lights, as the FM-1's key LEDs would be lit */
+{
+    static const uint8_t SC[8][3] = {{0x1c, 0x2a, 0x6e}, {0x9c, 0xc8, 0xf0}, {0x3f, 0xb9, 0x50}, {0x7c, 0xd8, 0x6a},
+                                     {0xff, 0xcb, 0x47}, {0xd9, 0xa4, 0x41}, {0xb0, 0x5a, 0x3a}, {0x6a, 0x6e, 0x9a}};
+    uint32_t p, a = ui_acc_user, r = (a >> 11 & 31u) << 3, g = (a >> 5 & 63u) << 2, b = (a & 31u) << 3;
+    uint32_t dr = r >> 4, dg = g >> 4, db = b >> 4;
+    if (yr_on()) {                              /* (JAHKI: the season's tint under it) */
+        const uint8_t *c = SC[(uint32_t)clamp(yr_season, 0, 7)];
+        dr = c[0] >> 4, dg = c[1] >> 4, db = c[2] >> 4;
+    }
+    for (p = 0; p < SMK_NPAD; p++) {
+        uint32_t n = SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(p)];
+        if (smk_note_led >> n & 1u || fm1_in.pad_st[p]) padled_set(p, (uint8_t)r, (uint8_t)g, (uint8_t)b);
+        else padled_set(p, (uint8_t)dr, (uint8_t)dg, (uint8_t)db);
+    }
+    padled_flush();
+}
+#ifdef DINGHY_HOST
+static void smk_probe(void)                     /* (host: tests/probe.c, "smkprobe MS bank B sw S press P lit L xled X
+                                                 * lvl L1,L2,L3,L4 dly D spc S mcut C pads RRGGBB x16") */
+{
+    uint32_t p, s0 = sel;
+    int32_t lv[4];
+    for (p = 0; p < 4u; p++) sel = p, lv[p] = *knob_param(PG_MIX1, 0);
+    sel = s0;
+    printf("smkprobe %u bank %u sw %d press %u lit %x xled %x lvl %d,%d,%d,%d dly %d spc %d mcut %d pads", fm1_ms, smk_bank,
+           (int)sw_cc, hw_press[sel], host_lit, smk_xled, (int)lv[0], (int)lv[1], (int)lv[2], (int)lv[3],
+           (int)*knob_param(PG_DELAY, 3), (int)*knob_param(PG_SPACE, 2), (int)mf_cut);
+    for (p = 0; p < SMK_NPAD; p++) printf(" %06x", host_pad_rgb[p]);
+    printf("\n");
+}
+#endif
+#else
+static void smk_poll(void) {}
+static void smk_pads(void) {}
+#endif

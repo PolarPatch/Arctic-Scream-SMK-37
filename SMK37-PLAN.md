@@ -34,7 +34,7 @@ K5..K8 KNOB 1..4; the FM-1's buttons on their printed counterparts; a fader take
 outer keys play below and above; the factory calibration read, never written; OCTAVE- at power-on is the USB
 rescue, OCTAVE- + OCTAVE+ held 5 s update mode.
 
-## The controls (a proposal)
+## The controls (as built)
 
 | SMK-37 | Arctic Scream |
 | --- | --- |
@@ -50,9 +50,9 @@ rescue, OCTAVE- + OCTAVE+ held 5 s update mode.
 | OCTAVE- / OCTAVE+ | OCT- / OCT+ |
 | < / > | the previous / next page |
 | 16 pads | the 16 white keys F3..G5 (as GHOULBOX), low notes on the bottom row; the pressure goes to the note as aftertouch (Holvut overblows, ICE WRAITH screams harder) |
-| pad lights | an aurora: each pad in its track's colour, breathing with what it plays; JAHKI's season tints them |
-| KNOB BANK | the pads as a picker while held: top row the slots A..D and JIEHKKI's START; bottom row the eight Sami seasons (JAHKI) |
-| FADER BANK | A: T1..T4 levels; B: DELAY, SPACE, GRAIN, SHIMMER; C: SWELL, MASTER CUTOFF, DRIVE, DRIFT |
+| pad lights | a sounding key's pad in the accent, the rest a dim glow tinted by JAHKI's season (later: each track's colour, breathing with what it plays) |
+| KNOB BANK | the pads as a picker while held: top row the slots A..D; bottom row the eight Sami seasons (JAHKI) |
+| FADER BANK | A: T1..T4 levels; B: DELAY, SPACE, GRAIN, SHIMMER; C: SWELL, MASTER CUTOFF, DRIVE, SPACE SIZE |
 | Pitch wheel | bend, the selected track, +-2 semitones |
 | Mod wheel | SWELL (CC 1, as on the FM-1 with a MIDI keyboard) |
 | Pedal | LATCH held (to do: wants the keyboard, the pedal's polarity) |

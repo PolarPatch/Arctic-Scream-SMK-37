@@ -283,7 +283,10 @@ EXPORT uint8_t *web_async_buf(void) { return web_async; }
 EXPORT uint32_t web_async_size(void) { return sizeof web_async; }
 EXPORT void web_run(void)                       /* never returns; unwinds at web_yield, rewound into by the worklet */
 {
-    memset(fake_flash, 0xFF, sizeof fake_flash);   /* (erased, as a new FM-1's: the factory samples go in at boot; before
+    memset(fake_flash, 0xFF, sizeof fake_flash);
+#if BOARD_SMK37
+    fm1_in.wheel[0] = 543u;                     /* (the pitch wheel at rest: its centre, as at a keyboard's power-on) */
+#endif   /* (erased, as a new FM-1's: the factory samples go in at boot; before
                                                  * the app: it is not rewound into) */
     app_main();
 }
@@ -357,6 +360,7 @@ EXPORT void web_smk(uint32_t kind, uint32_t a, uint32_t b)
     if (b > 127u) b = 127u;
     if (kind == 0u && a < 4u) fm1_in.fader[a] = (uint8_t)b;
     else if (kind == 1u) fm1_in.wheel[1] = (uint16_t)(629u - b * 155u / 127u);
+    else if (kind == 6u) fm1_in.wheel[0] = (uint16_t)(445u + b * 195u / 127u);   /* (6: the pitch wheel, b 64 at rest) */
     else if (kind == 2u && a < SMK_NPAD && smk_pad_pick) { if (b) smk_pick_hits |= (uint16_t)(1u << a); }
     else if (kind == 2u && a < SMK_NPAD) {
         uint32_t bit = 1u << SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(a)];

@@ -143,7 +143,12 @@ static inline int32_t amp_at(int32_t amp0, int32_t damp, int32_t i)
 /* the LFO's (lfo.c, the audio ISR a control step): a track's pitch offset (1/16 semitones: VP16, a voice's pitch, every
  * engine's), and a voice's parameters, one of them moved (else the track's own) */
 static volatile int32_t lfo_p16[NT];
+#if BOARD_SMK37
+static volatile int32_t smk_bend16[NT];         /* (Arctic Scream SMK-37: the pitch wheel, a track's bend, 1/16 semitones) */
+#define VP16(v) ((int32_t)(v)->note * 16 + lfo_p16[(v)->trk % NT] + smk_bend16[(v)->trk % NT])
+#else
 #define VP16(v) ((int32_t)(v)->note * 16 + lfo_p16[(v)->trk % NT])
+#endif
 static const volatile int32_t *lfo_params(uint32_t v, uint32_t t, uint32_t e);
 /* SYSTEM's TUNE (main loop): every source's pitch times 1 + tune_f / 4096 (-50 .. +50 cents: -117 .. +120; finer than
  * VP16's 6.25-cent steps); vinc: a pitch's phase increment, tuned */

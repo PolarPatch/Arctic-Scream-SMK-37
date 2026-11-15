@@ -9,6 +9,7 @@
  *                (it never jumps); A: T1..T4 LEVEL; B: DELAY, SPACE, GRAIN, SHIMMER; C: SWELL, MASTER CUTOFF,
  *                DRIVE, SPACE SIZE
  *   mod wheel    SWELL (as CC 1 from a MIDI keyboard)
+ *   pitch wheel  the selected track bent, +-2 semitones (its centre learned at rest, as genkigenki's layer does)
  *   pads         their pressure to the selected track as aftertouch (Holvut and the screams: harder)
  *   pad lights   a lit key's pad in the accent; the rest a dim glow: JAHKI's season, or the accent
  *   < / >        the previous / next page of the page's button (as tapping it again)
@@ -22,6 +23,8 @@ static uint8_t smk_fseen[4] = {0xFF, 0xFF, 0xFF, 0xFF};   /* the faders as last 
 static uint8_t smk_ftaken;                      /* bit f: fader f has the value (soft takeover) */
 static uint8_t smk_oheld[FM1_NKEY];             /* an outer key's note (+1) while it is down */
 static uint8_t smk_press_was;
+static int32_t smk_pb_c = -1, smk_pb_lo = 445, smk_pb_hi = 640, smk_pb_t = -1;   /* the pitch wheel: its centre
+                                                 * (raw), its travel seen, the track it bends */
 static int32_t smk_mod_was = -1, smk_mod_lo = 474, smk_mod_hi = 629;   /* the mod wheel: last value; its travel (raw,
                                                  * up = lower), widened to what it has shown (units differ) */
 /* bank b, fader f: (page, knob, track: 4 = the selected); SWELL: page NPAGE (its own) */
@@ -111,6 +114,22 @@ static void smk_poll(void)
         if (smk_mod_was < 0 || v > smk_mod_was + 1 || v < smk_mod_was - 1 || (v != smk_mod_was && (v == 0 || v == 127)))
             smk_mod_was = v, sw_cc = v;
     }
+    if (fm1_in.wheel[0]) {                      /* the pitch wheel: the selected track, +-2 semitones (32 / 16) */
+        int32_t w = fm1_in.wheel[0], d, b;
+        if (smk_pb_c < 0) smk_pb_c = w;         /* (at rest at power-on: its centre) */
+        if (w < smk_pb_lo) smk_pb_lo = w;
+        if (w > smk_pb_hi) smk_pb_hi = w;
+        d = w - smk_pb_c;
+        if (d > -12 && d < 12) {                /* (a dead band: at rest, the centre follows its drift) */
+            smk_pb_c += d > 0 ? (d > 2) : -(d < -2);
+            b = 0;
+        } else
+            b = d > 0 ? (d - 12) * 32 / (smk_pb_hi - smk_pb_c - 12 > 1 ? smk_pb_hi - smk_pb_c - 12 : 1)
+                      : (d + 12) * 32 / (smk_pb_c - smk_pb_lo - 12 > 1 ? smk_pb_c - smk_pb_lo - 12 : 1);
+        b = clamp(b, -32, 32);
+        if (smk_pb_t >= 0 && smk_pb_t != (int32_t)sel) smk_bend16[smk_pb_t] = 0;   /* (another track: the last let go) */
+        smk_pb_t = (int32_t)sel, smk_bend16[sel] = b;
+    }
     {                                           /* the pads' pressure: the selected track's aftertouch */
         uint32_t p, m = 0;
         for (p = 0; p < SMK_NPAD; p++)
@@ -167,14 +186,14 @@ static void smk_pads(void)                      /* the pads' lights, as the FM-1
     padled_flush();
 }
 #ifdef DINGHY_HOST
-static void smk_probe(void)                     /* (host: tests/probe.c, "smkprobe MS bank B sw S press P lit L xled X
+static void smk_probe(void)                     /* (host: tests/probe.c, "smkprobe MS bend B16 bank B sw S press P lit L xled X
                                                  * lvl L1,L2,L3,L4 dly D spc S mcut C pads RRGGBB x16") */
 {
     uint32_t p, s0 = sel;
     int32_t lv[4];
     for (p = 0; p < 4u; p++) sel = p, lv[p] = *knob_param(PG_MIX1, 0);
     sel = s0;
-    printf("smkprobe %u bank %u sw %d press %u lit %x xled %x lvl %d,%d,%d,%d dly %d spc %d mcut %d pads", fm1_ms, smk_bank,
+    printf("smkprobe %u bend %d bank %u sw %d press %u lit %x xled %x lvl %d,%d,%d,%d dly %d spc %d mcut %d pads", fm1_ms, (int)smk_bend16[sel], smk_bank,
            (int)sw_cc, hw_press[sel], host_lit, smk_xled, (int)lv[0], (int)lv[1], (int)lv[2], (int)lv[3],
            (int)*knob_param(PG_DELAY, 3), (int)*knob_param(PG_SPACE, 2), (int)mf_cut);
     for (p = 0; p < SMK_NPAD; p++) printf(" %06x", host_pad_rgb[p]);

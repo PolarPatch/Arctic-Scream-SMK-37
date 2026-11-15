@@ -71,9 +71,9 @@ function wheel(name, spring, onv) {
       if (spring) { v = 64; draw(); onv(v); }
     };
   });
-  w.title = spring ? "PITCH: springs back (no bend in Arctic Scream yet)" : "MOD: SWELL, as CC 1";
+  w.title = spring ? "PITCH: the selected track bent, ±2 semitones" : "MOD: SWELL, as CC 1";
 }
-wheel("PITCH", true, () => {});
+wheel("PITCH", true, (v) => send({ type: "smk", k: 6, a: 0, b: v }));
 wheel("MOD", false, (v) => send({ type: "smk", k: 1, a: 0, b: v }));
 
 // knobs

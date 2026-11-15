@@ -288,7 +288,7 @@ static void app_main(void);
  * BPMx10 0: none from T), "T probe" (the clock's and the sequencer's state out: tests/probe.c) */
 typedef struct { uint32_t t, keys; int btn; uint8_t st, d1, d2; int enc, steps, kind, src; uint32_t a, b;
                  const uint8_t *sx; uint32_t sxn; } host_ev_t;
-enum { HK_PLAIN, HK_CLOCK, HK_PROBE, HK_FADER, HK_MOD, HK_PAD, HK_OKEY, HK_XBTN };   /* (kind; the last five: the SMK-37) */
+enum { HK_PLAIN, HK_CLOCK, HK_PROBE, HK_FADER, HK_MOD, HK_PAD, HK_OKEY, HK_XBTN, HK_PITCH };   /* (kind; from FADER: the SMK-37) */
 static void host_probe(void);                   /* (tests/probe.c) */
 #define CHORD1 (1u << 7 | 1u << 11 | 1u << 14)                  /* C E G (C4 .. G4 at OCTAVE +0) */
 #define CHORD2 (1u << 2 | 1u << 5 | 1u << 9)                   /* G Bb D (G3 .. D4) */
@@ -356,6 +356,7 @@ static void read_script(const char *path)
         else if (!strcmp(what, "up")) { sscanf(line, "%*u %*s %d", &e.btn); e.btn |= 0x200; }
         else if (!strcmp(what, "enc")) { sscanf(line, "%*u %*s %d %d", &e.enc, &e.steps); }
 #if BOARD_SMK37
+        else if (!strcmp(what, "pitch")) { sscanf(line, "%*u %*s %u", &e.a); e.kind = HK_PITCH; }
         else if (!strcmp(what, "fader") || !strcmp(what, "mod") || !strcmp(what, "pad") || !strcmp(what, "okey") ||
                  !strcmp(what, "xbtn")) {
             sscanf(line, "%*u %*s %u %u", &e.a, &e.b);
@@ -542,6 +543,7 @@ static void platform_poll(void)                 /* one call = one millisecond */
             switch (script[step].kind) {
             case HK_FADER: if (A < 4u) fm1_in.fader[A] = (uint8_t)(B > 127u ? 127u : B); break;
             case HK_MOD: fm1_in.wheel[1] = (uint16_t)A; break;
+            case HK_PITCH: fm1_in.wheel[0] = (uint16_t)A; break;
             case HK_PAD:
                 if (A < SMK_NPAD && smk_pad_pick) { if (B) smk_pick_hits |= (uint16_t)(1u << A); }
                 else if (A < SMK_NPAD) {

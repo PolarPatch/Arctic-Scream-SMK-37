@@ -4,7 +4,20 @@ Arctic Scream for the M-VAVE SMK-37 Pro (and the SMK-37 Elite and MKE-P37, the s
 This repository is a fork of [Arctic Scream for the FM-1](https://github.com/PolarPatch/Arctic-scream-FM-1); the
 engine stays the FM-1's (merged from upstream), and everything for the keyboard sits behind `BOARD_SMK37`.
 
-Status: being built before the keyboard arrives. Nothing here has run on an SMK-37 yet.
+Status (2026-11-15): the board layer, the controls, the simulator and the browser's SMK-37 are built and tested off
+the keyboard (`tests/smk_test.py`, `web/test_smk37.mjs`); three packages build (Pro, Elite, MKE-P37). Nothing here has
+run on an SMK-37 yet.
+
+## Keeping up with the FM-1
+
+The engine is the FM-1's: everything Arctic Scream gains there comes here by a merge (the history is shared), and
+Arctic Scream VIBE takes the same engine (`tools/sync_engine.sh` there):
+
+```sh
+git fetch upstream && git merge upstream/main     # upstream: PolarPatch/Arctic-scream-FM-1
+```
+
+The SMK-37's own changes stay behind `BOARD_SMK37` (and `smk.c`, `smk_input.h`), so a merge rarely meets them.
 
 ## What the others did (25 firmwares on the SMK-37, five looked at closely)
 
@@ -40,16 +53,17 @@ rescue, OCTAVE- + OCTAVE+ held 5 s update mode.
 | pad lights | an aurora: each pad in its track's colour, breathing with what it plays; JAHKI's season tints them |
 | KNOB BANK | the pads as a picker while held: top row the slots A..D and JIEHKKI's START; bottom row the eight Sami seasons (JAHKI) |
 | FADER BANK | A: T1..T4 levels; B: DELAY, SPACE, GRAIN, SHIMMER; C: SWELL, MASTER CUTOFF, DRIVE, DRIFT |
-| Pitch wheel | bend, the selected track |
+| Pitch wheel | bend, the selected track, +-2 semitones |
 | Mod wheel | SWELL (CC 1, as on the FM-1 with a MIDI keyboard) |
-| Pedal | LATCH held |
+| Pedal | LATCH held (to do: wants the keyboard, the pedal's polarity) |
 
 ## Steps
 
-1. The repository, this plan, the board layer (GPL-3.0, genkigenki's SMK-37 port of Felucca, via GHOULBOX's
+1. (done) The repository, this plan, the board layer (GPL-3.0, genkigenki's SMK-37 port of Felucca, via GHOULBOX's
    `ghoulbox-smk37` branch) behind `BOARD_SMK37`; the FM-1 build unchanged.
-2. The simulator (`tests/host.c`) and the browser demo with the SMK-37's panel: 37 keys, pads, faders, wheels.
-3. When the keyboard is here: a full flash backup first (`trimdat` at 0xC1224), the identity (`--info`), then the
+2. (done) The simulator (`tests/host.c`) and the browser demo with the SMK-37's panel: 37 keys, pads, faders, wheels.
+3. To do off the keyboard: the keys' and the pads' velocity into the engine (it has none yet), the pedal.
+4. When the keyboard is here: a full flash backup first (`trimdat` at 0xC1224), the identity (`--info`), then the
    board layer brought up piece by piece: screen, keys, buttons, encoders, pads, faders, wheels, LEDs, saving.
 
 ## Sources

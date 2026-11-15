@@ -71,4 +71,9 @@ check("> the next page of the page's button, < back", pr[3400]["page"] != pr[300
 check("KNOB BANK held: a bottom-row pad picks a season (the third: GIDDA), no note; its LED lit while held",
       pr[4600]["ys"] == 2 and notes[4600] == [] and pr[4600]["xled"] == "1" and pr[5000]["xled"] == "0",
       (pr[4600].get("ys"), notes[4600], pr[4600]["xled"], pr[5000]["xled"]))
+pr, notes = run("bend", [(2900, "pitch 535"), (3000, "keys 1")] + P(3500) + [(4000, "pitch 640")] + P(4500) +
+                [(5000, "pitch 536")] + P(5500), 6000)
+check("the pitch wheel: at rest no bend, full up two semitones (32 / 16), back at rest none",
+      pr[3500]["bend"] == "0" and pr[4500]["bend"] == "32" and pr[5500]["bend"] == "0",
+      [pr[t]["bend"] for t in (3500, 4500, 5500)])
 sys.exit(1 if fails else 0)

@@ -61,7 +61,7 @@ The FM-1's manual applies; the screen keeps the FM-1's names.
 | FADER BANK | A: the four tracks' levels · B: DELAY, SPACE, GRAIN, SHIMMER · C: SWELL, MASTER CUTOFF, DRIVE, SPACE SIZE (its LED lit off A) |
 | Faders 1 .. 4 | the bank's four; a fader takes over only once it reaches the value, so nothing jumps |
 | Mod wheel | SWELL (as CC 1 from a MIDI keyboard) |
-| Pitch wheel | nothing yet |
+| Pitch wheel | the selected track bent, ±2 semitones |
 
 The SMK-37's TRS jack is a MIDI output, and this build does not use it; MIDI in and out go over USB.
 

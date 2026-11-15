@@ -2462,7 +2462,11 @@ static void accident(uint32_t lvl)
  * charger line, a charger alone is not seen); -1 no reading (host mode, the browser: no icon): bat_lvl */
 static void batt_poll(void)
 {
+#if BOARD_SMK37
+    static const int32_t TH[3] = {530, 560, 602};   /* (the SMK-37's own, its stock firmware's: mux C, not yet checked) */
+#else
     static const int32_t TH[3] = {531, 561, 591};
+#endif
     static uint32_t t;
     static int32_t s, lv = -1;                  /* (the reading x 16, smoothed; the level) */
     int32_t b;

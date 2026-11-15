@@ -56,4 +56,9 @@ check("silent before the pads, it sounds after", sum[1] > 1 && sum[1] > sum[0] *
 check("the pads glow dim at rest", pads && pads.every((c) => bright(c) > 0 && bright(c) < 120), pads && pads.map((c) => c.toString(16)).join(" "));
 check("a pad held lights (bottom-left: pad 8, F3)", padsOn && bright(padsOn[8]) > 200, padsOn && padsOn[8].toString(16));
 check("FADER BANK: its LED lit off bank A", (xled & 2) !== 0, xled);
+// smk_panel.js is a classic script: a top-level name the window already has (top, name, status ...) stops it dead
+const clash = [...readFileSync("web/smk_panel.js", "utf8").matchAll(/^(?:const|let|class)\s+([A-Za-z_$][\w$]*)/gm)]
+  .map((m) => m[1]).filter((n) => ["top", "parent", "self", "name", "status", "length", "origin", "history", "location",
+    "event", "frames", "opener", "closed", "screen", "external", "navigator", "close", "open", "stop", "print", "focus", "blur"].includes(n));
+check("the panel's script declares no name the window already has", clash.length === 0, clash.join(" "));
 process.exit(fail ? 1 : 0);

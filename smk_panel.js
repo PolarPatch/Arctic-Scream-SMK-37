@@ -34,16 +34,16 @@ const isBlack = (k) => [1, 3, 6, 8, 10].includes(k % 12);
 
 // ------------------------------------------------------------------ the panel
 const panel = $("smk");
-const top = make("div", "top", panel), bottom = make("div", "bottom", panel);
-const wheels = make("div", "wheels", top);
-const screenBox = make("div", "screenbox", top);
+const topRow = make("div", "top", panel), bottom = make("div", "bottom", panel);
+const wheels = make("div", "wheels", topRow);
+const screenBox = make("div", "screenbox", topRow);
 const canvas = make("canvas", "", screenBox);
 canvas.width = canvas.height = 240;
 canvas.setAttribute("role", "img");
 canvas.setAttribute("aria-label", "The screen");
 make("div", "brand", screenBox).innerHTML = "Arctic scream<i>·</i><span>SMK-37</span>";
-const knobBox = make("div", "knobs", top);
-const faderBox = make("div", "faders", top);
+const knobBox = make("div", "knobs", topRow);
+const faderBox = make("div", "faders", topRow);
 const btnBox = make("div", "buttons", bottom);
 const padBox = make("div", "pads", bottom);
 const keybed = make("div", "keybed", panel);

@@ -93,6 +93,9 @@ canvas { width: 100%; aspect-ratio: 1; background: #060410; border: 1.2cqw solid
        box-shadow: inset 0 0 1.6cqw var(--pad, transparent); }
 .pad.on { background: color-mix(in srgb, var(--pad) 70%, #12161c); box-shadow: 0 0 1.2cqw var(--pad), inset 0 0 .8cqw rgba(255, 255, 255, .25); }
 .pad.held { border-color: var(--fg); }
+.pad { display: grid; place-items: end start; padding: .5cqw; box-sizing: border-box; }
+.plab { font: 600 .85cqw/1 var(--mono); letter-spacing: .06em; color: var(--muted); pointer-events: none; }
+.pad.on .plab { color: var(--fg); }
 
 .keybed { position: relative; height: 13cqw; background: var(--bed); border-radius: 1cqw; border: .15cqw solid var(--edge); overflow: hidden; }
 .key { position: absolute; top: 0; bottom: 0; background: #c9d1d9; border: .1cqw solid #0a0d12; border-radius: 0 0 .5cqw .5cqw;
@@ -147,10 +150,12 @@ th { color: var(--dim); font-weight: 600; }
       <tr><td>Keys C3 .. E3, G♯5 .. C6</td><td>the notes below and above, on the selected track</td></tr>
       <tr><td>K1 · K2 · K3 · K4</td><td>MASTER · SELECT · ALGORITHM · PRESETS</td></tr>
       <tr><td>K5 .. K8</td><td>KNOB 1 .. 4</td></tr>
-      <tr><td>16 pads</td><td>the white keys F3 .. G5, low notes on the bottom row; held higher on the pad, harder (aftertouch)</td></tr>
+      <tr><td>Pads, top row</td><td>1 .. 4 the tracks (the selected one again: its LATCH) · 5 .. 8 the slots A .. D</td></tr>
+      <tr><td>Pads, bottom row</td><td>the FX tricks, on while held: REV THROW, ECHO THROW, TAPE STOP, REVERSE, FILTER DOWN, FILTER UP, STUTTER, SWELL. SEQ held: DICE's eight moods</td></tr>
+      <tr><td>Pad pressure</td><td>held higher on the pad, harder: the selected track's aftertouch</td></tr>
       <tr><td>FADER BANK</td><td>A: the four tracks' levels · B: DELAY, SPACE, GRAIN, SHIMMER · C: SWELL, CUTOFF, DRIVE, SIZE. A fader takes over once it reaches the value</td></tr>
       <tr><td>MOD wheel</td><td>SWELL</td></tr>
-      <tr><td>KNOB BANK held</td><td>the pads pick: the top row's first four the slots A .. D, the bottom row the eight Sami seasons</td></tr>
+      <tr><td>KNOB BANK held</td><td>the top row mutes T1 .. T4 and saves into A .. D, the bottom row picks one of the eight Sami seasons</td></tr>
       <tr><td>&lt; / &gt;</td><td>the previous / next page</td></tr>
       <tr><td>The buttons</td><td>the FM-1's, by their SMK-37 names (the grey line under each)</td></tr>
     </table>

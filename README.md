@@ -4,7 +4,7 @@
 
 > This is Arctic Scream for the **M-VAVE SMK-37** (Pro, Elite, MKE-P37): the FM-1 firmware's whole engine, on 37 keys,
 > 16 pads, eight knobs, four faders and two wheels. What is different on the keyboard, how to install it and how to
-> build it: **[SMK37.md](SMK37.md)**. Not yet run on a keyboard. The rest of this page is the FM-1's manual, which
+> build it: **[SMK37.md](SMK37.md)**. Play it in your browser: **[the SMK-37 demo](https://polarpatch.github.io/Arctic-Scream-SMK-37/)**. Not yet run on a keyboard. The rest of this page is the FM-1's manual, which
 > applies here too. For the FM-1 itself: [Arctic Scream FM-1](https://github.com/PolarPatch/Arctic-scream-FM-1).
 
 *Wind over the frozen tundra. Ice that groans under its own weight. Something out there in the polar night, howling back.*
@@ -22,7 +22,7 @@ Arctic Scream p0larpatch is a drone firmware for the FM-1 by PolarPatch. It has 
 
 **▶ Review: [Arctic Scream Test](https://www.youtube.com/watch?v=zt_Ej7tA8n0)** by [CCJmusic](https://www.youtube.com/@ccjmusic).
 
-**Try it in your browser first:** the **[demo](https://polarpatch.github.io/Arctic-scream-FM-1/)** runs the same code as the instrument, so you can play it before you install it. Then open the **[editor](https://polarpatch.github.io/Arctic-scream-FM-1/editor.html)** and the **[cheat sheet](https://polarpatch.github.io/Arctic-scream-FM-1/cheatsheet.html)**.
+**Try it in your browser first:** the **[SMK-37 demo](https://polarpatch.github.io/Arctic-Scream-SMK-37/)** runs the same code as the keyboard, so you can play it before you install it. Then open the **[editor](https://polarpatch.github.io/Arctic-Scream-SMK-37/editor.html)** and the **[cheat sheet](https://polarpatch.github.io/Arctic-Scream-SMK-37/cheatsheet.html)**.
 
 Free and open source (GPL-3.0). Unofficial firmware, not made or endorsed by M-VAVE. **Install at your own risk.**
 

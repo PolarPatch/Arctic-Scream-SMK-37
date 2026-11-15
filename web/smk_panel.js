@@ -170,6 +170,14 @@ for (const [print, id, fn] of BUTTONS) {
   buttons.push({ el: b, id });
   b.addEventListener("pointerdown", (e) => {
     e.preventDefault();
+    if (id === 14) {                                       // KNOB BANK: held, the pads pick (slots, seasons)
+      b.setPointerCapture(e.pointerId);
+      send({ type: "smk", k: 5, a: 14, b: 1 });
+      b.classList.add("held");
+      const up = () => { send({ type: "smk", k: 5, a: 14, b: 0 }); b.classList.remove("held"); b.onpointerup = b.onpointercancel = null; };
+      b.onpointerup = b.onpointercancel = up;
+      return;
+    }
     if (id >= 14) {
       send({ type: "smk", k: 4, a: id, b: 0 });
       if (id === 15) bankOut.textContent = FADER_BANKS[bank = (bank + 1) % 3];

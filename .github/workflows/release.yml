@@ -1,6 +1,7 @@
-# Arctic Scream p0larpatch's releases: a tag (v1.0, ...) is built, attested and released on GitHub by the FM-1
-# Firmware Hub's shared workflow (zvenson/fm1-build, reviewed at @v1), so the hub's card shows "Built from source".
-# One package a release: build/arctic-scream-X.Y.fwsc. Never replace or add a package by hand afterwards.
+# Arctic Scream SMK-37's releases: a tag (v2.1, ...) is built, attested and released on GitHub by the FM-1 Firmware
+# Hub's shared workflow (zvenson/fm1-build, reviewed at @v1), so the hub's card shows "Built from source".
+# Three packages a release, one a model name (the same keyboard): arctic-scream-smk37-X.Y.fwsc (SMK-37 Pro, Starrykey
+# 37 Play), -elite, -mke. Never replace or add a package by hand afterwards.
 name: release
 on:
   push:
@@ -13,5 +14,8 @@ jobs:
       id-token: write
       attestations: write
     with:
-      build: ./build.sh --release "${GITHUB_REF_NAME#v}"
-      packages: build/arctic-scream-*.fwsc
+      build: >-
+        BOARD=smk37 ./build.sh --release "${GITHUB_REF_NAME#v}" &&
+        BOARD=smk37 MODEL=elite ./build.sh --release "${GITHUB_REF_NAME#v}" &&
+        BOARD=smk37 MODEL=mke ./build.sh --release "${GITHUB_REF_NAME#v}"
+      packages: build/arctic-scream-smk37*.fwsc

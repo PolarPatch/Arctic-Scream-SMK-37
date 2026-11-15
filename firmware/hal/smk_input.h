@@ -452,8 +452,11 @@ static void fm1__frame(void)
 #define SMK_PAD_OFF 12u           /* below base + this: released */
 #define SMK_PAD_PEAKN 3u          /* samples (2.4 ms apart) for the peak */
 
+static volatile uint8_t smk_pad_pick;           /* (Arctic Scream: KNOB BANK held) the pads pick, they play no note */
+static volatile uint16_t smk_pick_hits;         /* the pads hit meanwhile (bit: hardware pad), the app takes them */
 static void smk__padq(uint32_t pad, uint32_t vel)     /* a pad hit (vel) or release (0): its white key */
 {
+    if (smk_pad_pick && vel) { smk_pick_hits |= (uint16_t)(1u << pad); return; }
     int32_t n0 = smk_pad_piano ? SMK_PIANO_NOTE[pad] : (int32_t)SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(pad)];
     uint32_t n, bit;
     if (vel) {

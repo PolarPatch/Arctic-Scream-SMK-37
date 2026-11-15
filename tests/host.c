@@ -44,6 +44,8 @@ static struct {
 } fm1_in;
 static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
 #define SMK_WHITE_OF_PAD(p) ((p) < 8u ? (p) + 8u : (p) - 8u)   /* (the bottom row: the low notes) */
+static volatile uint8_t smk_pad_pick;           /* (KNOB BANK held: the pads pick, hal/smk_input.h) */
+static volatile uint16_t smk_pick_hits;
 static uint32_t smk_note_led, smk_xled, host_pad_rgb[SMK_NPAD];
 static uint16_t smk_extq[32];
 static uint8_t smk_extq_w, smk_extq_r;
@@ -541,7 +543,8 @@ static void platform_poll(void)                 /* one call = one millisecond */
             case HK_FADER: if (A < 4u) fm1_in.fader[A] = (uint8_t)(B > 127u ? 127u : B); break;
             case HK_MOD: fm1_in.wheel[1] = (uint16_t)A; break;
             case HK_PAD:
-                if (A < SMK_NPAD) {
+                if (A < SMK_NPAD && smk_pad_pick) { if (B) smk_pick_hits |= (uint16_t)(1u << A); }
+                else if (A < SMK_NPAD) {
                     uint32_t bit = 1u << SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(A)];
                     fm1_in.pad_press[A] = (uint8_t)(B > 127u ? 127u : B), fm1_in.pad_st[A] = B ? 0x80u : 0u;
                     fm1_in.notes = B ? fm1_in.notes | bit : fm1_in.notes & ~bit;
@@ -551,7 +554,13 @@ static void platform_poll(void)                 /* one call = one millisecond */
                 if (A < FM1_NKEY && (uint8_t)(smk_extq_w + 1u) % 32u != smk_extq_r)
                     smk_extq[smk_extq_w] = (uint16_t)(A << 8 | (B > 127u ? 127u : B)), smk_extq_w = (uint8_t)((smk_extq_w + 1u) % 32u);
                 break;
-            default: if (A >= 14u && A < 18u) fm1_in.pressed_x |= 1u << (A - 14u); break;
+            default:                            /* (xbtn B: a tap; B + 100 held down, B + 200 let go) */
+                if (A % 100u >= 14u && A % 100u < 18u) {
+                    uint32_t bit = 1u << (A % 100u - 14u);
+                    if (A < 200u) fm1_in.pressed_x |= bit, fm1_in.xbuttons |= A >= 100u ? bit : 0u;
+                    else fm1_in.xbuttons &= ~bit;
+                }
+                break;
             }
 #endif
         } else if (script[step].kind == HK_PROBE) {

@@ -38,6 +38,10 @@ def run(name, ev, end):
         d["pads"] = [int(x, 16) for x in f[1].split()]
         pr[int(m.group(1))] = d
     notes = {int(m.group(1)): m.group(2).split() for m in re.finditer(r"^probe (\d+) .*? notes(.*?) fx ", out, re.M)}
+    for m in re.finditer(r"^probe (\d+) .*? ui page (\d+)", out, re.M):
+        pr.setdefault(int(m.group(1)), {})["page"] = int(m.group(2))
+    for m in re.finditer(r"^jkprobe (\d+) .*? ys (-?\d+)", out, re.M):
+        pr.setdefault(int(m.group(1)), {})["ys"] = int(m.group(2))
     return pr, notes
 
 
@@ -59,4 +63,12 @@ check("the mod wheel up: SWELL 127", pr[6300]["sw"] == "127", pr[6300]["sw"])
 check("a pad (bottom-left, F3): its note, its pressure as aftertouch, its light",
       "1:41" in notes[7300] and pr[7300]["press"] == "90" and bright(pr[7300]["pads"][8]) > 200, (notes[7300], pr[7300]))
 check("an outer key (C3): the note five below F3, on the selected track", "1:36" in notes[8300], notes[8300])
+
+pr, notes = run("pages", P(3000) + [(3200, "xbtn 17")] + P(3400) + [(3600, "xbtn 16")] + P(3800) +
+                [(4000, "xbtn 114"), (4200, "pad 10 100"), (4400, "pad 10 0")] + P(4600) + [(4800, "xbtn 214")] + P(5000), 5200)
+check("> the next page of the page's button, < back", pr[3400]["page"] != pr[3000]["page"] and pr[3800]["page"] == pr[3000]["page"],
+      [pr[t]["page"] for t in (3000, 3400, 3800)])
+check("KNOB BANK held: a bottom-row pad picks a season (the third: GIDDA), no note; its LED lit while held",
+      pr[4600]["ys"] == 2 and notes[4600] == [] and pr[4600]["xled"] == "1" and pr[5000]["xled"] == "0",
+      (pr[4600].get("ys"), notes[4600], pr[4600]["xled"], pr[5000]["xled"]))
 sys.exit(1 if fails else 0)

@@ -10,7 +10,10 @@
  *                DRIVE, SPACE SIZE
  *   mod wheel    SWELL (as CC 1 from a MIDI keyboard)
  *   pads         their pressure to the selected track as aftertouch (Holvut and the screams: harder)
- *   pad lights   a lit key's pad in the accent; the rest a dim glow: JAHKI's season, or the accent */
+ *   pad lights   a lit key's pad in the accent; the rest a dim glow: JAHKI's season, or the accent
+ *   < / >        the previous / next page of the page's button (as tapping it again)
+ *   KNOB BANK    held: the pads pick instead of playing; the top row's first four recall the slots A..D (as SAVE's
+ *                keys), the bottom row the eight Sami seasons (JAHKI's SEASON); lit as they are */
 
 #if BOARD_SMK37
 #define SMK_NBANK 3u
@@ -49,6 +52,19 @@ static void smk_fad_set(const uint8_t *F, uint32_t val)
     cc_apply(L, val);
 }
 
+static uint32_t smk_page_step(int dir)          /* the page before / after this one, among its button's */
+{
+    uint32_t b = PAGES[page].btn, p0 = page, q = page, before = page, n;
+    if (b >= 14u || !(BTN_PAGES >> b & 1u)) return page;
+    if (dir > 0) return next_page(b);
+    for (n = 0; n < NPAGE; n++) {               /* (the one whose next is this) */
+        before = q, page = q, q = next_page(b);
+        if (q == p0) break;
+    }
+    page = p0;
+    return before;
+}
+
 static void smk_poll(void)
 {
     int32_t e;
@@ -57,8 +73,22 @@ static void smk_poll(void)
         smk_bank = (smk_bank + 1u) % SMK_NBANK, smk_ftaken = 0;
         hd_say(SMK_BANK_NAME[smk_bank]);
     }
+    if (fm1_in.pressed_x & 1u << (SMK_B_RIGHT - 14u)) page = smk_page_step(1), midi_touch = 1;
+    if (fm1_in.pressed_x & 1u << (SMK_B_LEFT - 14u)) page = smk_page_step(-1), midi_touch = 1;
     fm1_in.pressed_x = 0;
     smk_led_extra(SMK_B_FADER_BANK, smk_bank != 0u);
+    smk_pad_pick = (uint8_t)(fm1_in.xbuttons & 1u);   /* (KNOB BANK held: the picker) */
+    smk_led_extra(SMK_B_KNOB_BANK, smk_pad_pick);
+    if (smk_pick_hits) {
+        uint32_t h = smk_pick_hits, p;
+        smk_pick_hits = 0;
+        for (p = 0; p < SMK_NPAD; p++) {
+            if (!(h >> p & 1u)) continue;
+            if (p < 4u) slot_do_recall(p);      /* (top row: A..D) */
+            else if (p >= 8u) knob_step(PG_JAHKI, 1u, (int32_t)(p - 8u) - yr_season);   /* (bottom row: a season) */
+            midi_touch = 1;
+        }
+    }
     for (f = 0; f < 4u; f++) {
         const uint8_t *F = SMK_FAD[smk_bank][f];
         uint32_t v = fm1_in.fader[f];
@@ -115,6 +145,19 @@ static void smk_pads(void)                      /* the pads' lights, as the FM-1
     if (yr_on()) {                              /* (JAHKI: the season's tint under it) */
         const uint8_t *c = SC[(uint32_t)clamp(yr_season, 0, 7)];
         dr = c[0] >> 4, dg = c[1] >> 4, db = c[2] >> 4;
+    }
+    if (smk_pad_pick) {                         /* the picker: the slots (the one in use bright), the seasons */
+        for (p = 0; p < SMK_NPAD; p++) {
+            const uint8_t *c = SC[p & 7u];
+            if (p < 4u) {
+                uint32_t on = (int32_t)p == slot_cur;
+                padled_set(p, (uint8_t)(on ? r : dr * 3u), (uint8_t)(on ? g : dg * 3u), (uint8_t)(on ? b : db * 3u));
+            } else if (p < 8u) padled_set(p, 0, 0, 0);
+            else if ((int32_t)(p - 8u) == yr_season) padled_set(p, c[0], c[1], c[2]);
+            else padled_set(p, (uint8_t)(c[0] >> 3), (uint8_t)(c[1] >> 3), (uint8_t)(c[2] >> 3));
+        }
+        padled_flush();
+        return;
     }
     for (p = 0; p < SMK_NPAD; p++) {
         uint32_t n = SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(p)];

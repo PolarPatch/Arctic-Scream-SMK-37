@@ -1,6 +1,11 @@
-# Árktalaš holvvas // Arctic Scream
+# Árktalaš holvvas // Arctic Scream SMK-37
 
-**Dark ambient drones and feedback screams from the arctic tundra, for the M-VAVE FM-1.**
+**Dark ambient drones and feedback screams from the arctic tundra, for the M-VAVE SMK-37.**
+
+> This is Arctic Scream for the **M-VAVE SMK-37** (Pro, Elite, MKE-P37): the FM-1 firmware's whole engine, on 37 keys,
+> 16 pads, eight knobs, four faders and two wheels. What is different on the keyboard, how to install it and how to
+> build it: **[SMK37.md](SMK37.md)**. Not yet run on a keyboard. The rest of this page is the FM-1's manual, which
+> applies here too. For the FM-1 itself: [Arctic Scream FM-1](https://github.com/PolarPatch/Arctic-scream-FM-1).
 
 *Wind over the frozen tundra. Ice that groans under its own weight. Something out there in the polar night, howling back.*
 Arctic Scream turns the FM-1 into an instrument for that: slow, cold drones that hum for minutes, and a voice that wakes on its own and screams.

@@ -53,6 +53,8 @@ static struct {
 } fm1_in;
 static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
 #define SMK_WHITE_OF_PAD(p) ((p) < 8u ? (p) + 8u : (p) - 8u)   /* (the bottom row: the low notes) */
+static volatile uint8_t smk_pad_pick;           /* (KNOB BANK held: the pads pick, hal/smk_input.h) */
+static volatile uint16_t smk_pick_hits;
 static uint32_t smk_note_led, smk_xled, web_pad_rgbv[SMK_NPAD], web_pad_notes;
 static uint16_t smk_extq[32];
 static uint8_t smk_extq_w, smk_extq_r;
@@ -349,12 +351,13 @@ EXPORT void web_sysex_out_clear(void) { web_sx_out_n = 0; }
 /* (Arctic Scream SMK-37) kind 0: fader a (0..3) to b (0..127); 1: the mod wheel, b 0..127 (raw as the keyboard's:
  * ~629 at rest .. ~474 up); 2: pad a (0..15, 0..7 the top row) pressed with pressure b (0: let go); 3: keybed key a
  * (0..36: an outer one, C3..E3, G#5..C6) with velocity b (0: let go); 4: an extra button a (14 KNOB BANK, 15 FADER
- * BANK, 16 <, 17 >) tapped */
+ * BANK, 16 <, 17 >) tapped; 5: one held (b 1) or let go (b 0) */
 EXPORT void web_smk(uint32_t kind, uint32_t a, uint32_t b)
 {
     if (b > 127u) b = 127u;
     if (kind == 0u && a < 4u) fm1_in.fader[a] = (uint8_t)b;
     else if (kind == 1u) fm1_in.wheel[1] = (uint16_t)(629u - b * 155u / 127u);
+    else if (kind == 2u && a < SMK_NPAD && smk_pad_pick) { if (b) smk_pick_hits |= (uint16_t)(1u << a); }
     else if (kind == 2u && a < SMK_NPAD) {
         uint32_t bit = 1u << SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(a)];
         fm1_in.pad_press[a] = (uint8_t)b, fm1_in.pad_st[a] = b ? 0x80u : 0u;
@@ -362,7 +365,11 @@ EXPORT void web_smk(uint32_t kind, uint32_t a, uint32_t b)
         web_pad_notes = b ? web_pad_notes | bit : web_pad_notes & ~bit;
     } else if (kind == 3u && a < FM1_NKEY && (uint8_t)(smk_extq_w + 1u) % 32u != smk_extq_r)
         smk_extq[smk_extq_w] = (uint16_t)(a << 8 | b), smk_extq_w = (uint8_t)((smk_extq_w + 1u) % 32u);
-    else if (kind == 4u && a >= 14u && a < 18u) fm1_in.pressed_x |= 1u << (a - 14u);
+    else if (kind == 4u && a >= 14u && a < 18u) fm1_in.pressed_x |= 1u << (a - 14u);   /* (a tap) */
+    else if (kind == 5u && a >= 14u && a < 18u) {   /* (5: an extra button held, b 1; let go, b 0: KNOB BANK's picker) */
+        if (b) fm1_in.pressed_x |= 1u << (a - 14u), fm1_in.xbuttons |= 1u << (a - 14u);
+        else fm1_in.xbuttons &= ~(1u << (a - 14u));
+    }
 }
 EXPORT uint32_t *web_pad_rgb(void) { return web_pad_rgbv; }
 EXPORT uint32_t web_xled(void) { return smk_xled; }

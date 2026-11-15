@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
-"""Install a Felucca package (.fwsc) on an FM-1 over USB-MIDI.
+"""Install a Felucca package (.fwsc) on an FM-1 (or an M-Vave SMK-37: its own package, its own model name) over USB-MIDI.
 
 The same update as the web installer (web/fm1ota.js): step 1, the
 running firmware reads parts of the package and starts the update loader;
@@ -33,7 +33,9 @@ FINISH_CHECK, FINISH_WRITE = 0xE0000000, 0xF0000000
 MAXDATA = 512
 BLOCKS, BLK, KEEP = 20, 0x30, 0x2F
 LOADER_MARK = b"FELUCCA-LOADER-1"
-PORT_RE = re.compile(r"fm-1|felucca|ota|composite|sinco|usb-midi", re.I)   # never probe other gear
+PORT_RE = re.compile(r"fm-1|smk-37|mke-p37|felucca|ota|composite|sinco|usb-midi", re.I)   # never probe other gear
+# (Arctic Scream SMK-37) the update loaders resumed: ours, the FM-1's and the SMK-37's model names (genkigenki's layer)
+OWN_LOADER = re.compile(r"ota-(FM-1|SMK-37 Pro|SMK-37 Elite|MKE-P37)_9\d\d", re.I)
 
 # seconds; the tests shorten them
 DELAY = {"open": 0.3, "start": 2.0, "reply": 0.01, "loader": 3.0, "reboot": 3.0, "retry": 1.0,
@@ -356,7 +358,7 @@ class Updater:
         if model_of(dev.id.text) != model_of(product):
             dev.link.close()
             raise InstallError("model", f"the device is {dev.id.text}, the package is for {product}")
-        if dev.id.loader and not re.fullmatch(r"ota-FM-1_9\d\d", dev.id.text, re.I):
+        if dev.id.loader and not OWN_LOADER.fullmatch(dev.id.text):
             dev.link.close()           # another firmware's loader: its image layout may differ
             raise InstallError("foreign", f"the FM-1 is in the update mode of another firmware ({dev.id.text}): "
                                           "finish that update with its own updater (M-UPGRADE), then install again")

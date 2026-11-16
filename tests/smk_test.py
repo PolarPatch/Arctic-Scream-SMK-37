@@ -5,7 +5,7 @@
 once they reach the value, FADER BANK steps the banks (its LED), the mod wheel is SWELL, the pads play the piece (the
 tracks, the slots, the FX tricks held, KNOB BANK's mutes and seasons) with their pressure as aftertouch, an outer key
 plays below F3.
-  python3 tests/smk_test.py      (builds build/host/grimm-smk37)"""
+  python3 tests/smk_test.py      (builds build/host/arctic-smk37)"""
 import re
 import subprocess
 import sys
@@ -13,11 +13,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "build" / "host" / "smk"
-BIN = ROOT / "build" / "host" / "grimm-smk37"
+BIN = ROOT / "build" / "host" / "arctic-smk37"
 OUT.mkdir(parents=True, exist_ok=True)
 subprocess.run(["cc", "-O2", "-Wall", "-Wno-unused-function", "-DDINGHY_HOST", "-DBOARD_SMK37=1", '-DAPP_VER="2.1.1"',
                 "-Dsection(x)=used", "-Ifirmware/hal", "-Ifirmware/src", "-Ifirmware/gen", "-o", str(BIN),
-                "firmware/src/grimm.c"], cwd=ROOT, check=True)
+                "firmware/src/arctic.c"], cwd=ROOT, check=True)
 fails = 0
 
 

@@ -9,8 +9,8 @@ BOARD=smk37 (or --board smk37): the M-Vave SMK-37 Pro build (-DBOARD_SMK37=1 for
 SMK-37 Pro_977, its flash layout, build/arctic-scream-smk37.fwsc); MODEL=elite / mke: the same under the SMK-37 Elite's
 or the MKE-P37's name (their identity and loader), so M-Vave's updater still takes that unit's factory package.
 
-Outputs in build/: grimm.bin (app), loader/ota.bin (update loader),
-grimm.fwsc (package). See README.md for the toolchain and the SDK.
+Outputs in build/: arctic.bin (app), loader/ota.bin (update loader),
+arctic-scream.fwsc (package). See README.md for the toolchain and the SDK.
 
 The JieLi toolchain is Linux x86-64 only. JIELI_TOOLCHAIN points at it; on
 macOS (or with JIELI_DOCKER=1) each tool runs in a linux/amd64 container.
@@ -171,9 +171,9 @@ def build_app():
             ("cc", "-c", FW / "hal" / "fm1_vec.S", "-o", OUT / "fm1_vec.o"),
             ("cc", "-c", FW / "hal" / "fm1_isr.S", "-o", OUT / "fm1_isr.o"),
             ("cc", "-c", FW / "hal" / "fm1_cpu1.S", "-o", OUT / "fm1_cpu1.o"),   # (2.2: the second core's entry, stacks)
-            ("cc", *flags, "-c", FW / "src" / "grimm.c", "-o", OUT / "grimm.o")]
+            ("cc", *flags, "-c", FW / "src" / "arctic.c", "-o", OUT / "arctic.o")]
     tc_all(*cmds)
-    elf = OUT / "grimm.elf"
+    elf = OUT / "arctic.elf"
     ld = FW / "app.ld"
     if APP_SLOT != 0x8DFBC:          # (the SMK-37's app slot: the same script, its XIP length)
         txt = ld.read_text()
@@ -182,7 +182,7 @@ def build_app():
         ld = OUT / "app.ld"
         ld.write_text(txt.replace("LENGTH = 0x8DFBC", f"LENGTH = {APP_SLOT:#x}"))
     tc("pi32v2/bin/ld", "--gc-sections", "-e", "_start", "-T", ld, OUT / "crt0.o", OUT / "fm1_vec.o",
-       OUT / "fm1_isr.o", OUT / "fm1_cpu1.o", OUT / "grimm.o", "-o", elf)
+       OUT / "fm1_isr.o", OUT / "fm1_cpu1.o", OUT / "arctic.o", "-o", elf)
     for sect in ("text.bin", "data.bin", "ramtext.bin"):
         (OUT / sect).unlink(missing_ok=True)
     *_, syms, dis, rt = tc_all(("common/bin/objcopy", "-O", "binary", "-j", ".text", elf, OUT / "text.bin"),
@@ -191,7 +191,7 @@ def build_app():
                                ("common/bin/objdump", "-t", elf),
                                ("common/bin/objdump", "-d", elf),
                                ("common/bin/objdump", "-d", "-j", ".ram_text", elf))
-    (OUT / "grimm.dis").write_text(dis)
+    (OUT / "arctic.dis").write_text(dis)
 
     def symv(name):
         return int(re.search(r"^([0-9a-f]+) .*\s" + name + r"$", syms, re.M).group(1), 16)
@@ -208,7 +208,7 @@ def build_app():
             img += b"\xff" * (load - APP_XIP - len(img))
             img += blob
     img += b"\xff" * (-len(img) % 4)
-    (OUT / "grimm.bin").write_bytes(img)
+    (OUT / "arctic.bin").write_bytes(img)
     return bytes(img), syms, dis, rt
 
 
@@ -343,7 +343,7 @@ def main():
         raise SystemExit("build: checks failed")
     pkg = fm1pkg_make.ufw(fm1pkg_make.flash_image(img, fm1pkg_make.KEY), ota, PRODUCT)
     (OUT / name).write_bytes(pkg)
-    print(f"app      {OUT / 'grimm.bin'}  {len(img)} B")
+    print(f"app      {OUT / 'arctic.bin'}  {len(img)} B")
     print(f"loader   {LDR / 'ota.bin'}  {len(ota)} B")
     print(f"package  {OUT / name}  {len(pkg)} B, identity {PRODUCT}, board {BOARD}")
     return 0

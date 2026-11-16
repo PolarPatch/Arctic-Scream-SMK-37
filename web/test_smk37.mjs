@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 PolarPatch
-// (Arctic Scream SMK-37) the browser build for the SMK-37 (web/dist/grimm-smk37.wasm) driven as smk_panel.js drives it:
+// (Arctic Scream SMK-37) the browser build for the SMK-37 (web/dist/arctic-smk37.wasm) driven as smk_panel.js drives it:
 // a pad, an outer key, a fader past its value, FADER BANK, the mod wheel; it sounds, and the pads light.
 //   node web/test_smk37.mjs   (after web/build_web.sh)
 import { readFileSync } from "node:fs";
 
 let ex, data, size, started = false, rewinding = false;
-const { instance } = await WebAssembly.instantiate(readFileSync("web/dist/grimm-smk37.wasm"), {
+const { instance } = await WebAssembly.instantiate(readFileSync("web/dist/arctic-smk37.wasm"), {
   env: {
     web_yield() {
       if (rewinding) { ex.asyncify_stop_rewind(); rewinding = false; return; }

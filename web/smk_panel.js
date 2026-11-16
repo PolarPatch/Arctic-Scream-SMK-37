@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 PolarPatch
 // Arctic Scream SMK-37 in the browser: the keyboard's panel (37 keys, 16 pads, 8 knobs, 4 faders, the wheels, 18
-// buttons) on the same worklet as the FM-1's page (worklet.js, grimm-smk37.wasm: firmware/src/grimm.c with
+// buttons) on the same worklet as the FM-1's page (worklet.js, arctic-smk37.wasm: firmware/src/arctic.c with
 // BOARD_SMK37, web/fm1_web.c's fake keyboard). The protocol is panel.js's (keys, buttons, enc, master, frames back), with
 // "smk" for what the FM-1 has not (web_smk: faders, the mod wheel, pads, the outer keys, the extra buttons).
 
@@ -15,7 +15,8 @@ const make = (tag, cls, parent, text) => {
 };
 let node = null, master = 700, btnMask = 0, keyMask = 0;
 const send = (m) => { if (node) node.port.postMessage(m); };
-const STORE = "grimm-smk37-settings";
+const STORE = "arctic-smk37-settings";
+const stored = (k) => localStorage.getItem(k) ?? localStorage.getItem(k.replace("arctic", "grimm"));   // (the older pages' key)
 
 // the SMK-37's buttons as printed, and what each is in Arctic Scream: an FM-1 button id (platform.c BTN_*) or an extra
 // (14 KNOB BANK, 15 FADER BANK, 16 <, 17 >: web_smk kind 4)
@@ -322,7 +323,7 @@ function drawPads(v) {
 // ------------------------------------------------------------------ the settings, kept in this browser
 function loadSettings() {
   try {
-    const a = JSON.parse(localStorage.getItem(STORE) || "null");
+    const a = JSON.parse(stored(STORE) || "null");
     return Array.isArray(a) ? Uint8Array.from(a.slice(0, 256)) : null;
   } catch { return null; }
 }
@@ -337,9 +338,9 @@ async function switchOn() {
   try {
     const ac = new AudioContext({ sampleRate: 44100, latencyHint: "interactive" });
     const [wasm] = await Promise.all([
-      fetch("grimm-smk37.wasm").then((r) => { if (!r.ok) throw new Error(`grimm-smk37.wasm: ${r.status}`); return r.arrayBuffer(); }),
+      fetch("arctic-smk37.wasm").then((r) => { if (!r.ok) throw new Error(`arctic-smk37.wasm: ${r.status}`); return r.arrayBuffer(); }),
       ac.audioWorklet.addModule("worklet.js")]);
-    node = new AudioWorkletNode(ac, "grimm", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+    node = new AudioWorkletNode(ac, "arctic", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
     node.connect(ac.destination);
     await new Promise((res, rej) => {
       node.port.onmessage = (e) => {

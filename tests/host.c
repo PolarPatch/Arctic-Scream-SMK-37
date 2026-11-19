@@ -201,6 +201,8 @@ static uint32_t stk_irq(void) { return 0u; }
 #define STK_IRQ_SZ 0u
 static uint32_t host_rec_from = 1, host_rec_to;   /* (ARCTIC_USB_REC=FROM,TO: a computer reads the USB audio from FROM to TO ms) */
 static int usb_recording(void) { return fm1_ms >= host_rec_from && fm1_ms < host_rec_to; }
+static uint32_t host_vsteps[2];                 /* (2.2: voices.c, ARCTIC_CPU2: the voices' control steps rendered on
+                                                 * this core, on the second: said at the end) */
 static uint32_t c1_sim;                         /* (2.2: ARCTIC_CPU2=1: arctic.c's SPACE as on the second core, a block
                                                  * behind) */
 static uint32_t cpu_hot_force;                  /* (2.2: ARCTIC_CPU_HOT=1: arctic.c's CPU guard as if the blocks ran hot) */
@@ -278,6 +280,10 @@ static int32_t host_master = 4092;              /* the MASTER knob as the app re
                                                  * the way up, as the USB audio always was here; ARCTIC_MASTER: the knob
                                                  * 0 .. 1023 (squared, as platform.c) */
 static int32_t fm1_master(void) { return host_master; }
+static uint8_t host_tvel[27], host_tpress[27];  /* (2.1.4) the script's "touch K VEL PRESS": what key K would read with
+                                                 * TOUCH on (firmware/src/touch.c); VEL 0: no reading */
+static volatile int8_t fm1_jack = -1;           /* the headphone jack (SOUND AUTO): not read (the whole range, as before);
+                                                 * the script's "jack 1" headphones in, "jack 0" nothing plugged */
 static void app_main(void);
 
 /* the script: at t ms, keys down (bit k = key k, 0 = F3), a button edge, a MIDI message, an encoder turned. A script
@@ -288,7 +294,7 @@ static void app_main(void);
  * BPMx10 0: none from T), "T probe" (the clock's and the sequencer's state out: tests/probe.c) */
 typedef struct { uint32_t t, keys; int btn; uint8_t st, d1, d2; int enc, steps, kind, src; uint32_t a, b;
                  const uint8_t *sx; uint32_t sxn; } host_ev_t;
-enum { HK_PLAIN, HK_CLOCK, HK_PROBE, HK_FADER, HK_MOD, HK_PAD, HK_OKEY, HK_XBTN, HK_PITCH };   /* (kind; from FADER: the SMK-37) */
+enum { HK_PLAIN, HK_CLOCK, HK_PROBE, HK_JACK, HK_TOUCH, HK_FADER, HK_MOD, HK_PAD, HK_OKEY, HK_XBTN, HK_PITCH };   /* (kind; from FADER: the SMK-37) */
 static void host_probe(void);                   /* (tests/probe.c) */
 #define CHORD1 (1u << 7 | 1u << 11 | 1u << 14)                  /* C E G (C4 .. G4 at OCTAVE +0) */
 #define CHORD2 (1u << 2 | 1u << 5 | 1u << 9)                   /* G Bb D (G3 .. D4) */
@@ -377,6 +383,8 @@ static void read_script(const char *path)
             sscanf(line, "%*u %*s %7s %u %u", s, &e.a, &e.b);
             e.kind = HK_CLOCK, e.src = s[0] == 't';
         } else if (!strcmp(what, "probe")) e.kind = HK_PROBE;
+        else if (!strcmp(what, "jack")) { sscanf(line, "%*u %*s %u", &e.a); e.kind = HK_JACK; }
+        else if (!strcmp(what, "touch")) { sscanf(line, "%*u %*s %u %u %u", &a, &e.a, &e.b); e.d1 = (uint8_t)a; e.kind = HK_TOUCH; }
         else continue;
         ev[n++] = e;
     }
@@ -537,6 +545,10 @@ static void platform_poll(void)                 /* one call = one millisecond */
         } else if (script[step].kind == HK_CLOCK) {
             hg.t0 = (uint64_t)script[step].t * 24000u, hg.k = 0, hg.bpm10 = script[step].a;
             hg.end = script[step].t + script[step].b, hg.src = (uint32_t)script[step].src;
+        } else if (script[step].kind == HK_TOUCH) {
+            if (script[step].d1 < 27u) host_tvel[script[step].d1] = (uint8_t)script[step].a, host_tpress[script[step].d1] = (uint8_t)script[step].b;
+        } else if (script[step].kind == HK_JACK) {
+            fm1_jack = (int8_t)(script[step].a != 0);
 #if BOARD_SMK37
         } else if (script[step].kind >= HK_FADER) {
             uint32_t A = script[step].a, B = script[step].b;
@@ -631,6 +643,8 @@ static void platform_poll(void)                 /* one call = one millisecond */
         if (ho.n)
             printf("clock  out: %u pulses, %u.%03u .. %u.%03u ms apart\n", ho.n, ho.lo / 24000u, ho.lo / 24u % 1000u,
                    ho.hi / 24000u, ho.hi / 24u % 1000u);
+        if (c1_sim)
+            printf("cpu2   voices: %u steps here, %u on the second core\n", host_vsteps[0], host_vsteps[1]);
         write_wav();
         exit(0);
     }

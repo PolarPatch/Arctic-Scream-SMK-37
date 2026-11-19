@@ -57,7 +57,8 @@ MODELS = {"pro": "SMK-37 Pro", "elite": "SMK-37 Elite", "mke": "MKE-P37"}
 PRODUCT = "FM-1_977"                # Arctic Scream 1.x: 977, every release (FM-1_9NN: the installers resume its loader; the hub's
                                     # other firmwares hold 950, 95x, 961, so not Dinghy's 9 + minor); Dinghy is 99N
 VERSION = None                      # APP_VER for release builds (else DEFAULT_VERSION)
-DEFAULT_VERSION = "2.1.1"
+DEFINES = []                        # --define: a test build's -D names (e.g. ARCTIC_FOO)
+DEFAULT_VERSION = "2.1.4"
 
 
 def toolchain():
@@ -166,7 +167,8 @@ def words():                                    # (1.5) the screen reader's word
 
 def build_app():
     words()
-    flags = [*CFLAGS, *BOARD_DEFS, "-Ifirmware/hal", "-Ifirmware/src", "-Ifirmware/gen", f'-DFELUCCA_ID="{PRODUCT}"', f'-DAPP_VER="{VERSION or DEFAULT_VERSION}"']
+    flags = [*CFLAGS, *BOARD_DEFS, "-Ifirmware/hal", "-Ifirmware/src", "-Ifirmware/gen", f'-DFELUCCA_ID="{PRODUCT}"', f'-DAPP_VER="{VERSION or DEFAULT_VERSION}"',
+             *(f"-D{d}" for d in DEFINES)]
     cmds = [("cc", "-c", FW / "crt0.S", "-o", OUT / "crt0.o"),
             ("cc", "-c", FW / "hal" / "fm1_vec.S", "-o", OUT / "fm1_vec.o"),
             ("cc", "-c", FW / "hal" / "fm1_isr.S", "-o", OUT / "fm1_isr.o"),
@@ -302,6 +304,9 @@ def main():
     ap.add_argument("--model", choices=sorted(MODELS), default=None, help="smk37: pro (default), elite or mke ($MODEL)")
     ap.add_argument("--release", metavar="X.Y", help="release build: the version string X.Y (identity FM-1_977 as always)")
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
+    ap.add_argument("--define", action="append", default=[], metavar="NAME",
+                    help="a test build: -DNAME for the app (e.g. ARCTIC_FOO); give it its own --name")
+    ap.add_argument("--name", help="the package's file name (default arctic-scream[-X.Y].fwsc)")
     a = ap.parse_args()
     BOARD = (a.board or os.environ.get("BOARD") or "fm1").lower().replace("-", "")
     if BOARD not in ("fm1", "smk37"):
@@ -317,12 +322,15 @@ def main():
         PRODUCT = MODELS[model] + "_977"
         stem = "arctic-scream-smk37" + ("" if model == "pro" else "-" + model)
     name = f"{stem}.fwsc"
+    DEFINES[:] = a.define
     if a.release:                   # one digit each: the identity has room for two (X.Y; a .Z only in the text)
         m = re.fullmatch(r"(\d)\.(\d)(\.\d)?(-[A-Za-z0-9]+)?", a.release)
         if not m:
             raise SystemExit(f"--release {a.release}: use X.Y, X.Y.Z or X.Y-suffix, one digit each")
         VERSION = m[1] + "." + m[2] + (m[3] or "")
         name = f"{stem}-{a.release}.fwsc"
+    if a.name:
+        name = a.name
     fm1pkg_make.SDK = a.sdk
     for rel, sha in SDK_SHA256.items():          # fail early without the SDK
         if hashlib.sha256(fm1pkg_make.sdk_file(rel)).hexdigest() != sha:

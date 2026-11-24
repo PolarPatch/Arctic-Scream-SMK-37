@@ -229,6 +229,7 @@ static int sysex_get(const uint8_t **p, uint32_t *n)
 static void sysex_done(void) { web_sx_in_ready = 0; }
 static int ann_wire_send(const uint8_t *p, uint32_t n) { (void)p; (void)n; return -1; }   /* (1.5: no reader here yet) */
 static int po_wire_send(const uint8_t *p, uint32_t n) { (void)p; (void)n; return -1; }    /* (1.5.2: PANEL OUT, none here) */
+static int mr_wire_send(const uint8_t *p, uint32_t n) { (void)p; (void)n; return -1; }    /* (2.1.5: SCREEN MIRROR, none here) */
 static int sysex_send(const uint8_t *p, uint32_t n)
 {
     if (web_sx_out_n + n > sizeof web_sx_out) return -1;
@@ -323,6 +324,7 @@ EXPORT void web_buttons(uint32_t mask)
     fm1_in.buttons = mask;
 }
 EXPORT void web_enc(uint32_t e, int32_t n) { if (e < 7u) web_enc_steps[e] += n; }
+static volatile int8_t fm1_jack = -1;           /* (the browser: a computer's output, as headphones: SOUND AUTO) */
 static int32_t fm1_master(void) { return web_master_q12; }   /* (the app's output stage asks) */
 EXPORT void web_master(uint32_t v) { web_knob = (int32_t)(v > 1023u ? 1023u : v); }
 EXPORT void web_midi(uint32_t st, uint32_t d1, uint32_t d2)

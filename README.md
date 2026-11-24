@@ -4,7 +4,7 @@
 
 > This is Arctic Scream for the **M-VAVE SMK-37** (Pro, Elite, MKE-P37): the FM-1 firmware's whole engine, on 37 keys,
 > 16 pads, eight knobs, four faders and two wheels. What is different on the keyboard, how to install it and how to
-> build it: **[SMK37.md](SMK37.md)**. Play it in your browser: **[the SMK-37 demo](https://polarpatch.github.io/Arctic-Scream-SMK-37/)**. Not yet run on a keyboard. The rest of this page is the FM-1's manual, which
+> build it: **[SMK37.md](SMK37.md)**. Play it in your browser: **[the SMK-37 demo](https://polarpatch.github.io/Arctic-Scream-SMK-37/)**. Tested on a real SMK-37 Pro. The rest of this page is the FM-1's manual, which
 > applies here too. For the FM-1 itself: [Arctic Scream FM-1](https://github.com/PolarPatch/Arctic-scream-FM-1).
 
 *Wind over the frozen tundra. Ice that groans under its own weight. Something out there in the polar night, howling back.*
@@ -36,6 +36,31 @@ Free and open source (GPL-3.0). Unofficial firmware, not made or endorsed by M-V
   - **FEEDBACK** wakes it, **BODY** bends it, **DAMP** turns the scream into a growl, and **DRIVE** tears it.
   - New in 1.3: push **FEEDBACK** to its last steps and the howl **overblows**: it leaps up the note's overtones and screams higher. Play from a MIDI keyboard with **aftertouch** and pressing harder does the same: the note feeds back more, screams and climbs, and falls back when you ease off.
   - **BODY** now reaches ~92 ms, for slow pulses at the top of its range; four all-passes in the loop smear the scream like a small reverb.
+- **New in 2.1.6:**
+  - **Luovos boazu** (North Sami: a free reindeer, roaming loose), an eleventh sound source: a deep, calm drone from
+    below, no howl. Four sines at the note and under it pull on each other and drift and breathe on their own.
+    **DEPTH** reaches down (UNISON, SUB + FIFTH, TWO SUBS, DARK RUB), **COUPLE** warms it from pure to a growl,
+    **DRIFT** lets it wander, **TONE** opens it. Three new factory sounds: SARVVIS, GODDI, LUOVOS.
+  - **The demos play themselves:** pick SARVVIS, GODDI, LUOVOS, POLAR HOWL, BIEGGA or MANDALORIA and press PLAY on
+    an empty track: a short piece starts, its knobs moving on their own, to show what the sound can do. Your own
+    patterns are never touched.
+  - **MANDALORIA**, a new HOWL sound, and the four DEEP sounds next to each other in PRESETS, right after ICE WRAITH.
+  - **GUOVSSAHAS**, the screen saver, shows the dithered northern lights over the tundra again.
+  - MASTER glides from one level to the next, so turning it is smooth.
+- **New in 2.1.5:**
+  - **SCREEN MIRROR:** the FM-1's screen, big and sharp, on a computer, a tablet or a phone. Arctic Scream speaks the
+    Big Screen protocol, so [FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror) (Mac, Windows, Linux) and FM-1 Mirror
+    + Spyglass (Android) show it as you play. Nothing is sent until an app asks, and it stops 3 s after the app goes.
+- **New in 2.1.4:**
+  - **TOUCH** (SYSTEM 4): the FM-1's own keys tell how hard they are played, with no change to the hardware.
+    VELOCITY on all 27 keys, and on the lower 20 pressure: pressing a held key harder deepens the track's LFO and
+    makes HOWL scream. MIDI velocity counts too. Off at the start.
+  - **ONE-SHOTS:** hold GLO and press any key the mutes and solos leave free: 19 short gestures (SNOWFALL, STRUM,
+    METEOR, PEAL, CHIMES …) played once on the selected track, in the scale, with its own sound or your sample.
+  - **TIDE** (press LFO six times): now and then the whole sound ebbs far down for a few minutes and comes back;
+    GUARD keeps a swell from towering over the music.
+  - **SOUND AUTO:** the headphone jack decides between the speaker's curve and the whole range.
+  - The second core now takes a share of the voices as well as SPACE, and TAPE's HISS warns when turned high.
 - **New in 2.1.1:**
   - **No more glitch under a drone.** The automatic save waits for silence again, however long; before, it saved
     anyway 30 s after you last touched anything, and the flash stopped the sound for a moment. A slot or a sound you

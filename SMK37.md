@@ -3,8 +3,8 @@
 Arctic Scream, the long dark screaming ambient firmware of the FM-1, built for the M-VAVE SMK-37: the same engine,
 sounds, screens and pieces, played from 37 keys, 16 pads, eight knobs, four faders and two wheels.
 
-> **Not yet run on a keyboard.** Everything here builds and is tested in the simulator and the browser; the first
-> SMK-37 arrives in December 2026. Until it has been brought up on one, install it only to test it, with a backup.
+> **Runs on a real SMK-37 Pro** (since 2.1.6, November 2026): sound, screen, keys, pads, knobs and the demos tested on
+> my own unit. Make a backup before you install anyway (below): it is still new on the keyboard.
 
 **Play it in your browser:** [polarpatch.github.io/Arctic-Scream-SMK-37](https://polarpatch.github.io/Arctic-Scream-SMK-37/), the same code
 the keyboard runs, on the SMK-37's panel.

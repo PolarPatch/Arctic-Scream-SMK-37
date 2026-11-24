@@ -29,6 +29,7 @@ import time
 
 HS_QUERY = bytes([0xF0, 0x00, 0x32, 0x45, 0x00, 0x00, 0x00, 0x40, 0x7F, 0xF7])
 UPGRADE = bytes([0xF0, 0x22, 0x24, 0x35, 0x7F, 0xF7])
+UBOOT_KEY = bytes([0xF0, 0x22, 0x24, 0x35, 0x7D, 0xF7])   # the soft key: the loader enters the mask-ROM UBOOT (USB disk)
 FINISH_CHECK, FINISH_WRITE = 0xE0000000, 0xF0000000
 MAXDATA = 512
 BLOCKS, BLK, KEEP = 20, 0x30, 0x2F
@@ -486,6 +487,21 @@ def run(a, backend, out, ask):
         dev.link.close()
         print("cancelled", file=out)
         return 1
+    if a.uboot:                # step 1 only (the app area is not touched), then UBOOT for a full flash backup
+        if model_of(dev.id.text) != model_of(product):
+            dev.link.close()
+            raise InstallError("model", f"the device is {dev.id.text}, the package is for {product}")
+        prog = Progress(out)
+        try:
+            ota = dev if dev.id.loader else up.check(dev, image, prog)
+        finally:
+            prog.end()
+        print(f"loader: {ota.id.text}; sending the UBOOT key", file=out)
+        ota.link.send(UBOOT_KEY)
+        time.sleep(1)
+        ota.link.close()
+        print("the device should now show up as a USB disk (WL82 UBOOT)", file=out)
+        return 0
     prog = Progress(out)
     try:
         up.install(dev, image, product, prog)
@@ -508,6 +524,8 @@ def main(argv=None, backend=None, out=sys.stdout, ask=ask_tty):
     ap.add_argument("--port", metavar="NAME", help="MIDI port to use (part of its name)")
     ap.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     ap.add_argument("--force", action="store_true", help="install a package without the Felucca loader marker")
+    ap.add_argument("--uboot", action="store_true", help="only start the package's update loader, then send it the "
+                    "UBOOT key (for a full flash backup with jl-uboot-tool; install the package afterwards)")
     a = ap.parse_args(argv)
     if bool(a.info) == bool(a.package):
         ap.error("give a PACKAGE.fwsc or --info")

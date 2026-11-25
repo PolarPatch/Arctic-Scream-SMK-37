@@ -25,6 +25,11 @@ static uint32_t smk_bank;                       /* FADER BANK: 0 A, 1 B, 2 C */
 static uint8_t smk_fseen[4] = {0xFF, 0xFF, 0xFF, 0xFF};   /* the faders as last read (0xFF: not yet) */
 static uint8_t smk_ftaken;                      /* bit f: fader f has the value (soft takeover) */
 static uint8_t smk_oheld[FM1_NKEY];             /* an outer key's note (+1) while it is down */
+static uint32_t smk_oheld_n;
+#ifdef DINGHY_HOST
+static int32_t smk_ped_rest;
+static uint32_t smk_ped_down;
+#endif                    /* (2.1.7) outer keys down (the pedal's minute) */
 static uint8_t smk_press_was;
 static int32_t smk_pb_c = -1, smk_pb_lo = 445, smk_pb_hi = 640, smk_pb_t = -1;   /* the pitch wheel: its centre
                                                  * (raw), its travel seen, the track it bends */
@@ -162,6 +167,25 @@ static void smk_poll(void)
             if (fm1_in.pad_press[p] > m) m = fm1_in.pad_press[p];
         if (m != smk_press_was) smk_press_was = (uint8_t)m, hw_press[sel] = (uint8_t)m;
     }
+    {                                           /* (2.1.7) the pedal: SUSTAIN. Either kind of pedal (one that opens
+                                                 * when pressed, or closes): its reading at power-on is its rest
+                                                 * (plug it in first); pressed, the reading moves far from it. Down a
+                                                 * whole minute with no key played (the other kind plugged in later):
+                                                 * that is its rest now */
+        static int32_t rest = -1;
+        static uint32_t down, t_dn, notes_was;
+        int32_t p = fm1_in.pedal, d;
+        if (rest < 0 && fm1_ms < 300u) p = -1;  /* (the first readings in first: the mux's scan) */
+        else if (rest < 0) rest = p;
+        d = p < 0 ? 0 : p - rest, d = d < 0 ? -d : d;
+        if (fm1_in.notes != notes_was || fm1_in.notes || smk_oheld_n) notes_was = fm1_in.notes, t_dn = fm1_ms;
+        if (!down && d > 384) down = 1, t_dn = fm1_ms, sus_set(1u, 1);
+        else if (down && d < 192) down = 0, sus_set(1u, 0);
+        else if (down && fm1_ms - t_dn > 60000u) rest = p, down = 0, sus_set(1u, 0);
+#ifdef DINGHY_HOST
+        smk_ped_rest = rest, smk_ped_down = down;
+#endif
+    }
     while ((e = smk_extkey_take()) >= 0) {      /* the outer keys: the notes below and above, the selected track */
         uint32_t k = (uint32_t)e >> 8, n;
         if (k >= FM1_NKEY) continue;
@@ -170,13 +194,16 @@ static void smk_poll(void)
             if (nn < 0 || nn > 127) continue;
             n = sc_snap((uint32_t)nn);
             if (smk_oheld[k]) nq_note(NQ_OFF, sel, 0, MIDI_ID(smk_oheld[k] - 1u));
+            sus_again(MIDI_ID(n));
+            id_vel[MIDI_ID(n)] = tch_gain((uint32_t)e & 0x7Fu);   /* (2.1.7: TOUCH, the key's velocity) */
             nq_note(trk[sel].latch ? NQ_TOGGLE : NQ_ON, sel, n, MIDI_ID(n));
+            if (!smk_oheld[k]) smk_oheld_n++;
             smk_oheld[k] = (uint8_t)(n + 1u);
             ch_last = (int32_t)n;
             midi_touch = 1;
         } else if (smk_oheld[k]) {
-            if (!trk[sel].latch) nq_note(NQ_OFF, sel, 0, MIDI_ID(smk_oheld[k] - 1u));
-            smk_oheld[k] = 0;
+            if (!trk[sel].latch) hand_off(NQ_OFF, sel, MIDI_ID(smk_oheld[k] - 1u));   /* (2.1.7: SUSTAIN holds it) */
+            smk_oheld[k] = 0, smk_oheld_n--;
         }
     }
 }
@@ -225,10 +252,11 @@ static void smk_probe(void)                     /* (host: tests/probe.c, "smkpro
     int32_t lv[4];
     for (p = 0; p < 4u; p++) sel = p, lv[p] = *knob_param(PG_MIX1, 0);
     sel = s0;
-    printf("smkprobe %u bend %d bank %u sw %d press %u lit %x xled %x lvl %d,%d,%d,%d dly %d spc %d mcut %d pf %x sel %u mute %x lat %d pads",
+    printf("smkprobe %u bend %d bank %u sw %d press %u lit %x xled %x lvl %d,%d,%d,%d dly %d spc %d mcut %d pf %x sel %u mute %x lat %d sus %u held %u tvel %u vg %u pads",
            fm1_ms, (int)smk_bend16[sel], smk_bank, (int)sw_cc, hw_press[sel], host_lit, smk_xled, (int)lv[0], (int)lv[1],
            (int)lv[2], (int)lv[3], (int)*knob_param(PG_DELAY, 3), (int)*knob_param(PG_SPACE, 2), (int)mf_cut,
-           (unsigned)pf_held, (unsigned)sel, (unsigned)trk_mute, (int)trk[sel].latch);
+           (unsigned)pf_held, (unsigned)sel, (unsigned)trk_mute, (int)trk[sel].latch, (unsigned)sus_down,
+           (unsigned)sus_n, (unsigned)tch_last_v, (unsigned)id_vel[KEY_ID(0)]);
     for (p = 0; p < SMK_NPAD; p++) printf(" %06x", host_pad_rgb[p]);
     printf("\n");
 }

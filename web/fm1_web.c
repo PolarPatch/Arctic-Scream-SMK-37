@@ -49,8 +49,11 @@ enum { SMK_B_KNOB_BANK = 14, SMK_B_FADER_BANK = 15, SMK_B_LEFT = 16, SMK_B_RIGHT
 static struct {
     uint32_t notes, buttons, xbuttons, pressed_x;
     uint8_t fader[4], pad_press[SMK_NPAD], pad_st[SMK_NPAD];
-    uint16_t wheel[2];
+    uint16_t wheel[2], pedal;
+    uint8_t key_vel[FM1_NKEY];
 } fm1_in;
+static uint8_t smk_kvel(uint32_t k) { return fm1_in.key_vel[SMK_KEY_F3 + k] ? fm1_in.key_vel[SMK_KEY_F3 + k] : 127u; }   /* (2.1.7:
+                                                 * the page's keys have no velocity: full, as before) */
 static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
 #define SMK_WHITE_OF_PAD(p) ((p) < 8u ? (p) + 8u : (p) - 8u)   /* (the bottom row: the low notes) */
 static volatile uint8_t smk_pad_pick;           /* (KNOB BANK held: the pads pick, hal/smk_input.h) */
@@ -356,7 +359,7 @@ EXPORT void web_sysex_out_clear(void) { web_sx_out_n = 0; }
 /* (Arctic Scream SMK-37) kind 0: fader a (0..3) to b (0..127); 1: the mod wheel, b 0..127 (raw as the keyboard's:
  * ~629 at rest .. ~474 up); 2: pad a (0..15, 0..7 the top row) pressed with pressure b (0: let go); 3: keybed key a
  * (0..36: an outer one, C3..E3, G#5..C6) with velocity b (0: let go); 4: an extra button a (14 KNOB BANK, 15 FADER
- * BANK, 16 <, 17 >) tapped; 5: one held (b 1) or let go (b 0) */
+ * BANK, 16 <, 17 >) tapped; 5: one held (b 1) or let go (b 0); (2.1.7) 7: the sustain pedal down (b 1) or up (0) */
 EXPORT void web_smk(uint32_t kind, uint32_t a, uint32_t b)
 {
     if (b > 127u) b = 127u;
@@ -368,6 +371,7 @@ EXPORT void web_smk(uint32_t kind, uint32_t a, uint32_t b)
         fm1_in.pad_press[a] = (uint8_t)b, fm1_in.pad_st[a] = b ? 0x80u : 0u;
     } else if (kind == 3u && a < FM1_NKEY && (uint8_t)(smk_extq_w + 1u) % 32u != smk_extq_r)
         smk_extq[smk_extq_w] = (uint16_t)(a << 8 | b), smk_extq_w = (uint8_t)((smk_extq_w + 1u) % 32u);
+    else if (kind == 7u) fm1_in.pedal = b ? 1023u : 0u;   /* (its rest, 0, learnt as the page starts) */
     else if (kind == 4u && a >= 14u && a < 18u) fm1_in.pressed_x |= 1u << (a - 14u);   /* (a tap) */
     else if (kind == 5u && a >= 14u && a < 18u) {   /* (5: an extra button held, b 1; let go, b 0: KNOB BANK's picker) */
         if (b) fm1_in.pressed_x |= 1u << (a - 14u), fm1_in.xbuttons |= 1u << (a - 14u);

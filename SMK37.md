@@ -68,8 +68,11 @@ The FM-1's manual applies; the screen keeps the FM-1's names.
 | Faders 1 .. 4 | the bank's four; a fader takes over only once it reaches the value, so nothing jumps |
 | Mod wheel | SWELL (as CC 1 from a MIDI keyboard) |
 | Pitch wheel | the selected track bent, ±2 semitones |
+| Keys and pads, velocity | softer or louder as struck (SYSTEM 4's TOUCH starts at VELOCITY on the SMK-37; OFF: one level) |
+| Sustain pedal (its jack) | SUSTAIN: the notes let go held until it comes up. Either kind of pedal: plug it in before switching on, it is read at rest then (or hold it down a minute without playing and it learns it) |
 
 The SMK-37's TRS jack is a MIDI output, and this build does not use it; MIDI in and out go over USB.
+Over USB it is called **Arctic Scream SMK-37** (an FM-1: Arctic Scream).
 
 ## Build
 

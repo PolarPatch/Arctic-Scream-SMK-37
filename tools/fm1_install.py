@@ -34,7 +34,7 @@ FINISH_CHECK, FINISH_WRITE = 0xE0000000, 0xF0000000
 MAXDATA = 512
 BLOCKS, BLK, KEEP = 20, 0x30, 0x2F
 LOADER_MARK = b"FELUCCA-LOADER-1"
-PORT_RE = re.compile(r"fm-1|smk-37|mke-p37|felucca|ota|composite|sinco|usb-midi", re.I)   # never probe other gear
+PORT_RE = re.compile(r"arctic scream|fm-1|smk-37|mke-p37|felucca|ota|composite|sinco|usb-midi", re.I)   # never probe other gear
 # (Arctic Scream SMK-37) the update loaders resumed: ours, the FM-1's and the SMK-37's model names (genkigenki's layer)
 OWN_LOADER = re.compile(r"ota-(FM-1|SMK-37 Pro|SMK-37 Elite|MKE-P37)_9\d\d", re.I)
 

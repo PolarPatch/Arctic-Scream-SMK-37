@@ -32,6 +32,7 @@ static volatile uint32_t fm1_ms;
 /* (Arctic Scream SMK-37) the keyboard's extras, as hal/smk_input.h gives them to the app (firmware/src/smk.c); the
  * script: "fader F V" (0..127), "mod RAW" (the mod wheel's raw, up = lower: ~629 rest .. ~474 top), "pad P V" (a hardware
  * pad 0..15: 0..7 the top row; V its pressure, 0 let go), "okey K V" (keybed key 0..36, an outer one: C3..E3,
+ * (2.1.7) "pedal RAW" (the sustain pedal's raw 0..1023), "touch K VEL" (also the keybed's velocity of FM-1 key K),
  * G#5..C6; V the velocity, 0 let go), "xbtn B" (a tap: 14 KNOB BANK, 15 FADER BANK, 16 <, 17 >) */
 #define FM1_NKEY 37u
 #define SMK_NPAD 16u
@@ -40,8 +41,11 @@ enum { SMK_B_KNOB_BANK = 14, SMK_B_FADER_BANK = 15, SMK_B_LEFT = 16, SMK_B_RIGHT
 static struct {
     uint32_t notes, buttons, xbuttons, pressed_x;
     uint8_t fader[4], pad_press[SMK_NPAD], pad_st[SMK_NPAD];
-    uint16_t wheel[2];
+    uint16_t wheel[2], pedal;
+    uint8_t key_vel[FM1_NKEY];
 } fm1_in;
+static uint8_t smk_kvel(uint32_t k) { return fm1_in.key_vel[SMK_KEY_F3 + k] ? fm1_in.key_vel[SMK_KEY_F3 + k] : 100u; }   /* (the
+                                                 * script's "touch K VEL": the keybed's velocity; none: 100) */
 static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
 #define SMK_WHITE_OF_PAD(p) ((p) < 8u ? (p) + 8u : (p) - 8u)   /* (the bottom row: the low notes) */
 static volatile uint8_t smk_pad_pick;           /* (KNOB BANK held: the pads pick, hal/smk_input.h) */
@@ -344,7 +348,7 @@ static void app_main(void);
  * BPMx10 0: none from T), "T probe" (the clock's and the sequencer's state out: tests/probe.c) */
 typedef struct { uint32_t t, keys; int btn; uint8_t st, d1, d2; int enc, steps, kind, src; uint32_t a, b;
                  const uint8_t *sx; uint32_t sxn; } host_ev_t;
-enum { HK_PLAIN, HK_CLOCK, HK_PROBE, HK_JACK, HK_TOUCH, HK_FADER, HK_MOD, HK_PAD, HK_OKEY, HK_XBTN, HK_PITCH };   /* (kind; from FADER: the SMK-37) */
+enum { HK_PLAIN, HK_CLOCK, HK_PROBE, HK_JACK, HK_TOUCH, HK_FADER, HK_MOD, HK_PAD, HK_OKEY, HK_XBTN, HK_PITCH, HK_PEDAL };   /* (kind; from FADER: the SMK-37) */
 static void host_probe(void);                   /* (tests/probe.c) */
 #define CHORD1 (1u << 7 | 1u << 11 | 1u << 14)                  /* C E G (C4 .. G4 at OCTAVE +0) */
 #define CHORD2 (1u << 2 | 1u << 5 | 1u << 9)                   /* G Bb D (G3 .. D4) */
@@ -413,6 +417,7 @@ static void read_script(const char *path)
         else if (!strcmp(what, "enc")) { sscanf(line, "%*u %*s %d %d", &e.enc, &e.steps); }
 #if BOARD_SMK37
         else if (!strcmp(what, "pitch")) { sscanf(line, "%*u %*s %u", &e.a); e.kind = HK_PITCH; }
+        else if (!strcmp(what, "pedal")) { sscanf(line, "%*u %*s %u", &e.a); e.kind = HK_PEDAL; }   /* (2.1.7: its raw) */
         else if (!strcmp(what, "fader") || !strcmp(what, "mod") || !strcmp(what, "pad") || !strcmp(what, "okey") ||
                  !strcmp(what, "xbtn")) {
             sscanf(line, "%*u %*s %u %u", &e.a, &e.b);
@@ -602,6 +607,9 @@ static void platform_poll(void)                 /* one call = one millisecond */
             hg.end = script[step].t + script[step].b, hg.src = (uint32_t)script[step].src;
         } else if (script[step].kind == HK_TOUCH) {
             if (script[step].d1 < 27u) host_tvel[script[step].d1] = (uint8_t)script[step].a, host_tpress[script[step].d1] = (uint8_t)script[step].b;
+#if BOARD_SMK37
+            if (script[step].d1 < 27u) fm1_in.key_vel[SMK_KEY_F3 + script[step].d1] = (uint8_t)script[step].a;   /* (the keybed's) */
+#endif
         } else if (script[step].kind == HK_JACK) {
             fm1_jack = (int8_t)(script[step].a != 0);
 #if BOARD_SMK37
@@ -611,6 +619,7 @@ static void platform_poll(void)                 /* one call = one millisecond */
             case HK_FADER: if (A < 4u) fm1_in.fader[A] = (uint8_t)(B > 127u ? 127u : B); break;
             case HK_MOD: fm1_in.wheel[1] = (uint16_t)A; break;
             case HK_PITCH: fm1_in.wheel[0] = (uint16_t)A; break;
+            case HK_PEDAL: fm1_in.pedal = (uint16_t)A; break;
             case HK_PAD:
                 if (A < SMK_NPAD) {             /* (as the hardware: held, its pressure; a hit to the app) */
                     if (B && fm1_in.pad_st[A] != 0x80u) smk_pick_hits |= (uint16_t)(1u << A);

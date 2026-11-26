@@ -85,4 +85,26 @@ pr, notes = run("bend", [(2900, "pitch 535"), (3000, "keys 1")] + P(3500) + [(40
 check("the pitch wheel: at rest no bend, full up two semitones (32 / 16), back at rest none",
       pr[3500]["bend"] == "0" and pr[4500]["bend"] == "32" and pr[5500]["bend"] == "0",
       [pr[t]["bend"] for t in (3500, 4500, 5500)])
+# (2.1.7) the keybed's velocity (TOUCH starts at VELOCITY on the SMK-37): a soft key quieter than a hard one
+pr, notes = run("vel", [(2900, "touch 0 20 0"), (3000, "keys 1")] + P(3200) + [(3300, "keys 0"), (3400, "touch 0 120 0"),
+                (3500, "keys 1")] + P(3700) + [(3800, "keys 0")], 4000)
+check("velocity: the key's own (20, 120), a soft note's level under a hard one's",
+      pr[3200]["tvel"] == "20" and pr[3700]["tvel"] == "120" and 0 < int(pr[3200]["vg"]) < int(pr[3700]["vg"]),
+      [(pr[t]["tvel"], pr[t]["vg"]) for t in (3200, 3700)])
+# (2.1.7) SUSTAIN: the pedal (rest learnt at power-on), and CC 64 in
+L0 = [(2500, "pad 0 80"), (2550, "pad 0 0"), (2600, "probe")]   # (T1's LATCH off: the pad of the selected track again)
+pr, notes = run("sus", [(0, "pedal 1000")] + L0 + [(2900, "keys 1")] + P(3100) + [(3200, "pedal 10"), (3300, "keys 0")] + P(3600) +
+                [(3700, "keys 4")] + P(3800) + [(3900, "keys 0")] + P(4100) + [(4200, "pedal 1000")] + P(4400) +
+                [(5000, "midi 0xB0 64 127"), (5100, "keys 1"), (5200, "keys 0")] + P(5400) + [(5500, "midi 0xB0 64 0")] + P(5700), 6000)
+check("(T1's LATCH off for these)", pr[2600]["lat"] == "0", pr[2600]["lat"])
+check("the pedal down: a key let go sounds on; up: it goes",
+      "1:41" in " ".join(notes[3100]) and pr[3600]["sus"] == "1" and len(notes[3600]) == 1 and
+      len(notes[4100]) == 2 and pr[4100]["held"] == "2" and notes[4400] == [] and pr[4400]["sus"] == "0",
+      [(notes[t], pr[t]["sus"], pr[t]["held"]) for t in (3100, 3600, 4100, 4400)])
+check("CC 64 in: the same; 0 lets go", len(notes[5400]) == 1 and pr[5400]["sus"] == "2" and notes[5700] == [],
+      [(notes[t], pr[t]["sus"]) for t in (5400, 5700)])
+pr, notes = run("sus2", [(0, "pedal 1000")] + L0 + [(3000, "pedal 10"), (3100, "keys 1"), (3200, "keys 0"), (3300, "keys 1")] + P(3500) +
+                [(3600, "keys 0"), (3700, "pedal 1000")] + P(4000), 4200)
+check("the pedal down, a key played again: one voice, not two; up: none", len(notes[3500]) == 1 and notes[4000] == [],
+      [notes[t] for t in (3500, 4000)])
 sys.exit(1 if fails else 0)

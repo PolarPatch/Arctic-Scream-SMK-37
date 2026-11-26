@@ -235,6 +235,8 @@ static uint32_t smk_curve(const uint16_t *t, uint32_t x)   /* stock curve: 5 poi
     return v ? v : 1u;
 }
 FM1_INLINE uint8_t smk_vel7(uint32_t v10) { return (uint8_t)(v10 >> 3 ? v10 >> 3 : 1u); }
+FM1_INLINE uint8_t smk_kvel(uint32_t k) { return fm1_in.key_vel[SMK_KEY_F3 + k]; }   /* (2.1.7) FM-1 key k (0 = F3): the velocity
+                                                 * of its last press, the keybed's or a pad's (Arctic Scream: TOUCH) */
 
 static void smk_trim_defaults(void)
 {

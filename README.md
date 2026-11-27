@@ -36,7 +36,7 @@ Free and open source (GPL-3.0). Unofficial firmware, not made or endorsed by M-V
   - **FEEDBACK** wakes it, **BODY** bends it, **DAMP** turns the scream into a growl, and **DRIVE** tears it.
   - New in 1.3: push **FEEDBACK** to its last steps and the howl **overblows**: it leaps up the note's overtones and screams higher. Play from a MIDI keyboard with **aftertouch** and pressing harder does the same: the note feeds back more, screams and climbs, and falls back when you ease off.
   - **BODY** now reaches ~92 ms, for slow pulses at the top of its range; four all-passes in the loop smear the scream like a small reverb.
-- **New in 2.1.10: Wi-Fi on the SMK-37!** Play straight to Ableton Note on your phone.
+- **New in 2.1.9: Wi-Fi on the SMK-37!** Play straight to Ableton Note on your phone.
   - **NETWORK** (hold PATCH, the SMK-37's HOME, then PATCH four more times): **WIFI** OFF, JOIN (your own network) or
     **HOTSPOT** (the keyboard is the network: no router, on stage, anywhere).
   - **MIDI over Wi-Fi** (RTP-MIDI, Apple's Network Session): the keyboard's notes go to Ableton Note or any app that
@@ -212,7 +212,7 @@ In the chip's download mode, Windows may ask to format the FM-1 as a disk. Alway
 - **Book of the Dead II** by DigDugDIY: the FX loop inside the feedback that became the LOOP page's BLOOM. An idea only; it is hardware.
 - **[FM-1 Screen Reader](https://github.com/charlesvestal/fm1-reader)** by Charles Vestal: the reader page and its protocol; `firmware/src/announce.c` and `tools/gen_words.py` are [fm1-base](https://github.com/charlesvestal/fm1-base)'s (MPL-2.0).
 - **[BlueWatch](https://github.com/PolarPatch/BlueWatch)** by PolarPatch: the colour palette.
-- **[Optimist](https://github.com/w0ts/optimist)** by Henri David and **[fm1-base](https://github.com/charlesvestal/fm1-base)** by Charles Vestal (2.1.10): the FM-1's and the SMK-37's own Wi-Fi, Bluetooth and Ableton Link stacks (GPL-3.0-only / MPL-2.0; Apache-2.0 radio tables), carried unchanged in `firmware/radio/`, and fm1-base's supply setup. MIDI over Wi-Fi is from PolarPatch's FM-1 Again.
+- **[Optimist](https://github.com/w0ts/optimist)** by Henri David and **[fm1-base](https://github.com/charlesvestal/fm1-base)** by Charles Vestal (2.1.9): the FM-1's and the SMK-37's own Wi-Fi, Bluetooth and Ableton Link stacks (GPL-3.0-only / MPL-2.0; Apache-2.0 radio tables), carried unchanged in `firmware/radio/`, and fm1-base's supply setup. MIDI over Wi-Fi is from PolarPatch's FM-1 Again.
 - **Press Start 2P** font by CodeMan38 and **Terminus** font by Dimitar Zhekov (SIL Open Font License 1.1).
 
 The PolarPatch logo belongs to PolarPatch and is not under the GPL. See [LICENSING.md](LICENSING.md) for the details.

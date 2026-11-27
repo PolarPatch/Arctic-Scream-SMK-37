@@ -99,7 +99,7 @@ across the stereo field.
 - **TYPE** (MIXER 2): the track filter is a low-pass (`LP`), high-pass (`HP`) or band-pass (`BP`). `LP` open (CUTOFF at the top) or `HP` open (CUTOFF at the bottom) means no filtering. A band-pass is gentle at RESONANCE 0 and narrows as you turn it up.
 - **POS** (MIXER 2): `PRE`: the effect sends hear the filtered sound (as before 1.3). `POST`: only the track's dry sound is filtered; GRAIN, DELAY and SPACE hear it unfiltered (a dark track with a bright reverb, say).
 
-### DRIFT: the mix moving by itself (new in 2.1.10)
+### DRIFT: the mix moving by itself (new in 2.1.9)
 
 Press **HOME** a fourth time for **DRIFT**: an ambient mixer that slowly rearranges the tracks while they play, so a
 drone never settles. Every so often it deals a new mix: one sounding track near full, the others somewhere under it,
@@ -780,7 +780,7 @@ settings belong to the FM-1, not the project.
 | SYSTEM 2 | MIDI LEARN | SEQ MIDI OUT | SAMPLES | CLOCK (INT, I+OUT, USB, TRS) |
 | SYSTEM 3 | LATCH (FROM SOUND, ALWAYS OFF) | USB LEVEL (−12 to +24 dB, and each with SPK OFF) | MOD OUT (OFF, ON) | PICTURE (CARD, SKY, OFF) |
 | SYSTEM 4 (new in 2.1) | SOUND (AUTO, HEADPHONES, SPEAKER) | HELP (ON, OFF) | TOUCH (OFF, VELOCITY, VEL+PRESS) | |
-| NETWORK (new in 2.1.10) | WIFI (OFF, JOIN, HOTSPOT) | LINK (OFF, ON) | BLUETOOTH (OFF, ON) | |
+| NETWORK (new in 2.1.9) | WIFI (OFF, JOIN, HOTSPOT) | LINK (OFF, ON) | BLUETOOTH (OFF, ON) | |
 
 - **COLOUR:** pick the one that matches your FM-1. **MONO** (new in 2.0) turns the whole screen black and white, the
   greys as a fine pattern of dots, as on an old one-bit screen. The header stays clean so the sound's name reads.
@@ -858,7 +858,7 @@ go of the notes MIDI holds (a latched note stays). Aftertouch pushes a Holvut tr
 pedal comes up. A note played again while it is down starts afresh instead of doubling. A latched track, the sequence
 and the arp are not touched. ALL NOTES OFF lets go of what the pedal holds too.
 
-### NETWORK: Wi-Fi, Ableton Link and Bluetooth MIDI (new in 2.1.10)
+### NETWORK: Wi-Fi, Ableton Link and Bluetooth MIDI (new in 2.1.9)
 
 The FM-1 has a radio inside, and so has the SMK-37 (the same chip); Arctic Scream now uses it. **Hold HOME** (PATCH on
 the SMK-37) and press it four more times for **NETWORK**. Its lines say what the radio is doing.

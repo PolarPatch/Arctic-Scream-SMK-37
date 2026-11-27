@@ -74,7 +74,7 @@ The FM-1's manual applies; the screen keeps the FM-1's names.
 The SMK-37's TRS jack is a MIDI output, and this build does not use it; MIDI in and out go over USB.
 Over USB it is called **Arctic Scream SMK-37** (an FM-1: Arctic Scream).
 
-### Wi-Fi, Ableton Link and Bluetooth MIDI (new in 2.1.10)
+### Wi-Fi, Ableton Link and Bluetooth MIDI (new in 2.1.9)
 
 The SMK-37 has the FM-1's chip and its radio. **Hold PATCH**, then press PATCH four more times: **NETWORK**. Turn K5
 for **WIFI** (OFF, JOIN, HOTSPOT), K6 for **LINK**, K7 for **BLUETOOTH**. With HOTSPOT the keyboard is the network
